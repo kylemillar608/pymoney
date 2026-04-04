@@ -1,0 +1,21 @@
+# Runtime data
+data/finance.db
+data/raw/
+!data/raw/.gitkeep
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Gas Town runtime
+.beads/
+.claude/
+.runtime/
+
+# OS
+.DS_Store

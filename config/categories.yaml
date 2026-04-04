@@ -1,0 +1,89 @@
+categories:
+  - name: Rent
+    group: Housing
+    rules:
+      - contains: ["RENT", "LEASE"]
+  - name: Utilities
+    group: Housing
+    rules:
+      - contains: ["ELECTRIC", "GAS", "WATER", "COMCAST", "XFINITY", "AT&T", "VERIZON"]
+      - regex: "UTILITY|UTILITIES|INTERNET"
+  - name: Groceries
+    group: Food & Dining
+    rules:
+      - contains: ["TRADER JOE", "WHOLE FOODS", "SAFEWAY", "KROGER", "COSTCO", "WALMART", "TARGET GROCERY"]
+      - regex: "GROCERY|MARKET|FOOD MART"
+  - name: Restaurants
+    group: Food & Dining
+    rules:
+      - contains: ["DOORDASH", "UBER EATS", "GRUBHUB", "MCDONALD", "STARBUCKS", "CHIPOTLE", "SUBWAY"]
+      - regex: "RESTAURANT|CAFE|DINER|PIZZA|SUSHI|BURRITO"
+  - name: Gas & Fuel
+    group: Transport
+    rules:
+      - contains: ["SHELL", "CHEVRON", "EXXON", "BP", "ARCO", "MOBIL", "SUNOCO"]
+      - regex: "GAS STATION|FUEL|GASOLINE"
+  - name: Parking & Tolls
+    group: Transport
+    rules:
+      - contains: ["PARKING", "TOLL", "PARKMOBILE", "SPOTHERO"]
+  - name: Rideshare
+    group: Transport
+    rules:
+      - contains: ["UBER", "LYFT"]
+  - name: Auto Insurance
+    group: Transport
+    rules:
+      - contains: ["GEICO", "STATE FARM", "ALLSTATE", "PROGRESSIVE", "AAA"]
+      - regex: "AUTO INSURANCE"
+  - name: Health Insurance
+    group: Health
+    rules:
+      - regex: "HEALTH INSURANCE|ANTHEM|CIGNA|AETNA|KAISER|BCBS|BLUE CROSS"
+  - name: Pharmacy
+    group: Health
+    rules:
+      - contains: ["WALGREENS", "CVS", "RITE AID", "PHARMACY"]
+  - name: Doctor & Medical
+    group: Health
+    rules:
+      - regex: "MEDICAL|CLINIC|HOSPITAL|URGENT CARE|DENTIST|VISION"
+  - name: Streaming
+    group: Entertainment
+    rules:
+      - contains: ["NETFLIX", "SPOTIFY", "HULU", "DISNEY", "HBO", "APPLE.COM/BILL", "YOUTUBE"]
+      - regex: "STREAMING|SUBSCRIPTION"
+  - name: Gym & Fitness
+    group: Entertainment
+    rules:
+      - contains: ["GYM", "FITNESS", "PLANET FITNESS", "CROSSFIT", "PELOTON"]
+  - name: Clothing
+    group: Shopping
+    rules:
+      - contains: ["AMAZON", "NORDSTROM", "GAP", "H&M", "ZARA", "MACY"]
+      - regex: "APPAREL|CLOTHING|FASHION"
+  - name: Electronics
+    group: Shopping
+    rules:
+      - contains: ["BEST BUY", "APPLE STORE", "NEWEGG", "B&H"]
+  - name: Paycheck
+    group: Income
+    is_income: true
+    rules:
+      - regex: "PAYROLL|DIRECT DEPOSIT|SALARY|PAYCHECK"
+  - name: Interest Income
+    group: Income
+    is_income: true
+    rules:
+      - regex: "INTEREST PAID|DIVIDEND|INTEREST CREDIT"
+  - name: Transfer
+    group: Transfers
+    is_transfer: true
+    rules:
+      - contains: ["TRANSFER", "ZELLE", "VENMO", "PAYPAL"]
+  - name: Investment Purchase
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+    rules:
+      - regex: "FIDELITY|VANGUARD|SCHWAB|INVESTMENT|BROKERAGE"

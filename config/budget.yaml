@@ -1,0 +1,16 @@
+defaults:
+  Rent: 2500
+  Utilities: 200
+  Groceries: 600
+  Restaurants: 300
+  Gas & Fuel: 150
+  Parking & Tolls: 50
+  Rideshare: 75
+  Auto Insurance: 150
+  Health Insurance: 200
+  Pharmacy: 50
+  Doctor & Medical: 100
+  Streaming: 60
+  Gym & Fitness: 50
+  Clothing: 150
+  Electronics: 100

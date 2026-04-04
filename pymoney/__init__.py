@@ -1,0 +1,1 @@
+"""pymoney — personal finance system."""
