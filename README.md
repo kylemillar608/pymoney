@@ -36,22 +36,49 @@ directly from that sheet via the Sheets API.
 
 ### Fidelity (investment transactions)
 
-Export activity CSVs from Fidelity's website and drop them in `data/raw/`.
-pymoney picks up any `*.csv` in that directory automatically.
+Paste your Fidelity CSV export into a dedicated tab in the same Google Spreadsheet
+(default tab name: `Fidelity`). pymoney reads directly from that tab via the Sheets API.
+
+The expected columns match the Fidelity CSV export format: Run Date, Account, Account
+Number, Action, Symbol, Description, Type, Quantity, Price, Amount, Commission, Fees,
+Settlement Date.
+
+Set `FIDELITY_TAB_NAME` in `.env` if your tab has a different name.
+
+### Coinbase (BTC trades) — coming soon
+
+A `Coinbase` tab is reserved for future BTC trade history. Running
+`pymoney ingest coinbase` will show a not-yet-implemented message until the column
+format is finalized. Set `COINBASE_TAB_NAME` in `.env` to configure the tab name.
+
+## Data Safety
+
+pymoney reads sensitive financial data. These guardrails prevent it from being
+committed to the repo:
+
+- `.gitignore` blocks `*.csv`, `*.tsv`, `*.db`, `*.duckdb`, `*.json`, and `data/raw/`
+- A pre-commit hook scans staged files for SSN patterns and 10+ digit account numbers
+
+**After cloning, install the pre-commit hook:**
+
+```bash
+pymoney install-hooks
+```
+
+Never commit `.env`, `service_account.json`, or any data exports.
 
 ## Ingesting Data
 
 ```bash
-# Pull everything (Tiller + all Fidelity CSVs in data/raw/)
+# Pull everything (Tiller + Fidelity from Google Sheets)
 pymoney ingest all
 
 # Tiller only — optionally limit to recent data
 pymoney ingest tiller
 pymoney ingest tiller --since 2025-01-01
 
-# Fidelity only — specific files or all of data/raw/
+# Fidelity only (reads from Fidelity tab in Google Sheets)
 pymoney ingest fidelity
-pymoney ingest fidelity data/raw/History_for_Account_1234.csv
 
 # Re-run category rules on uncategorized transactions
 pymoney categorize

@@ -1,18 +1,26 @@
-"""Fidelity CSV → investment_transactions ingest."""
+"""Fidelity (Google Sheets tab) → investment_transactions ingest."""
 
 from __future__ import annotations
 
-import csv
 import hashlib
+import os
 import re
 from datetime import date, datetime
-from pathlib import Path
 from typing import Any
 
+import gspread
+from dotenv import load_dotenv
+from google.oauth2.service_account import Credentials
 from pydantic import BaseModel, field_validator
 
 from pymoney.db import get_connection
 
+load_dotenv()
+
+_SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/drive.readonly",
+]
 
 _ACTION_TYPE_PATTERNS: list[tuple[str, str]] = [
     (r"BOUGHT|BUY", "BUY"),
@@ -92,76 +100,74 @@ class FidelityTransaction(BaseModel):
         return parsed
 
 
-def _find_header_row(rows: list[list[str]]) -> int | None:
-    """Find the index of the header row by looking for 'Run Date'."""
-    for i, row in enumerate(rows):
-        if row and row[0].strip() == "Run Date":
-            return i
-    return None
+def _get_client() -> gspread.Client:
+    """Build authenticated gspread client from service account JSON."""
+    service_account_path = os.path.expanduser(
+        os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON", "~/.config/pymoney/service_account.json")
+    )
+    creds = Credentials.from_service_account_file(service_account_path, scopes=_SCOPES)
+    return gspread.authorize(creds)
 
 
-def load_fidelity_csv(filepath: str | Path) -> list[FidelityTransaction]:
-    """Parse a Fidelity CSV export and return validated transactions."""
-    path = Path(filepath)
-    raw_rows: list[list[str]] = []
-    with path.open(newline="", encoding="utf-8-sig") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            raw_rows.append(row)
+def _get_sheet() -> gspread.Spreadsheet:
+    """Open the spreadsheet."""
+    spreadsheet_id = os.getenv("TILLER_SPREADSHEET_ID")
+    if not spreadsheet_id:
+        raise ValueError("TILLER_SPREADSHEET_ID environment variable not set")
+    client = _get_client()
+    return client.open_by_key(spreadsheet_id)
 
-    header_idx = _find_header_row(raw_rows)
-    if header_idx is None:
-        raise ValueError(f"Could not find header row in {filepath}")
 
-    headers = [h.strip() for h in raw_rows[header_idx]]
+def load_fidelity_sheet() -> list[FidelityTransaction]:
+    """Read Fidelity tab from Google Sheets and return validated transactions."""
+    tab_name = os.getenv("FIDELITY_TAB_NAME", "Fidelity")
+    sheet = _get_sheet()
+    ws = sheet.worksheet(tab_name)
+    records = ws.get_all_records()
+
     transactions: list[FidelityTransaction] = []
-
-    for row in raw_rows[header_idx + 1:]:
-        if not row or not any(cell.strip() for cell in row):
+    for r in records:
+        run_date_val = str(r.get("Run Date", "")).strip()
+        if not run_date_val:
             continue
-        if len(row) < len(headers):
-            row = row + [""] * (len(headers) - len(row))
-
-        data: dict[str, str] = dict(zip(headers, row))
-        run_date_val = data.get("Run Date", "")
-        if not run_date_val or not run_date_val.strip():
-            continue
-
         run_date = _parse_date(run_date_val)
         if run_date is None:
             continue
 
-        action = data.get("Action", "").strip()
-        symbol = data.get("Symbol", "").strip() or None
-        account_number = data.get("Account Number", "").strip() or None
-        amount_val = _parse_decimal(data.get("Amount", ""))
+        action = str(r.get("Action", "")).strip()
+        symbol = str(r.get("Symbol", "")).strip() or None
+        account_number = str(r.get("Account Number", "")).strip() or None
+        amount_val = _parse_decimal(str(r.get("Amount", "")))
         tx_id = _make_id(account_number or "", run_date, symbol or "", action, amount_val)
 
         tx = FidelityTransaction(
             id=tx_id,
             run_date=run_date,
-            account=data.get("Account", "").strip() or None,
+            account=str(r.get("Account", "")).strip() or None,
             account_number=account_number,
             action=action,
             action_type=_parse_action_type(action),
             symbol=symbol,
-            description=data.get("Description", "").strip() or None,
-            security_type=data.get("Type", "").strip() or None,
-            quantity=_parse_decimal(data.get("Quantity", "") or data.get("Exchange Quantity", "")),
-            price=_parse_decimal(data.get("Price", "")),
+            description=str(r.get("Description", "")).strip() or None,
+            security_type=str(r.get("Type", "")).strip() or None,
+            quantity=_parse_decimal(str(r.get("Quantity", ""))),
+            price=_parse_decimal(str(r.get("Price", ""))),
             amount=amount_val,
-            commission=_parse_decimal(data.get("Commission", "")),
-            fees=_parse_decimal(data.get("Fees", "")),
-            settlement_date=_parse_date(data.get("Settlement Date", "")),
+            commission=_parse_decimal(str(r.get("Commission", ""))),
+            fees=_parse_decimal(str(r.get("Fees", ""))),
+            settlement_date=_parse_date(str(r.get("Settlement Date", ""))),
         )
         transactions.append(tx)
 
     return transactions
 
 
-def ingest_fidelity(filepath: str | Path, db_path: str | None = None) -> int:
-    """Load and upsert Fidelity CSV into investment_transactions. Returns count inserted."""
-    transactions = load_fidelity_csv(filepath)
+def ingest_fidelity(db_path: str | None = None) -> int:
+    """Load Fidelity tab from Google Sheets and upsert into investment_transactions.
+
+    Returns count inserted.
+    """
+    transactions = load_fidelity_sheet()
     if not transactions:
         return 0
 

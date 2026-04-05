@@ -1,20 +1,18 @@
-"""Tests for Fidelity CSV ingest."""
+"""Tests for Fidelity Google Sheets ingest."""
 
 from __future__ import annotations
 
-import csv
-import io
-import tempfile
-from pathlib import Path
+from datetime import date
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from pymoney.ingest.fidelity import (
     FidelityTransaction,
     _parse_action_type,
-    _parse_decimal,
     _parse_date,
-    load_fidelity_csv,
+    _parse_decimal,
+    load_fidelity_sheet,
 )
 
 
@@ -65,12 +63,10 @@ def test_parse_decimal_whitespace():
 
 
 def test_parse_date_slash():
-    from datetime import date
     assert _parse_date("04/15/2024") == date(2024, 4, 15)
 
 
 def test_parse_date_iso():
-    from datetime import date
     assert _parse_date("2024-04-15") == date(2024, 4, 15)
 
 
@@ -78,84 +74,107 @@ def test_parse_date_empty():
     assert _parse_date("") is None
 
 
-# --- CSV parsing tests ---
+# --- Google Sheets integration tests (mocked) ---
 
-_CSV_HEADER = (
-    "Run Date,Account,Account Number,Action,Symbol,Description,Type,"
-    "Exchange Quantity,Exchange Currency,Currency,Price,Quantity,"
-    "Exchange Rate,Commission,Fees,Accrued Interest,Amount,Settlement Date"
-)
-
-_SAMPLE_ROWS = [
-    # BUY with fractional quantity
-    "04/15/2024,Brokerage,Z12345678,YOU BOUGHT VANGUARD 500 ETF (VOO),VOO,"
-    "VANGUARD S&P 500 ETF,ETF,,,,450.25,0.482,,0.00,0.00,,−216.92,04/17/2024",
-    # DIVIDEND with empty symbol (cash transaction)
-    "04/01/2024,Brokerage,Z12345678,DIVIDEND RECEIVED,,"
-    "CASH DIVIDEND,Cash,,,,,,,,,, 25.00,",
-    # SELL
-    "04/20/2024,Brokerage,Z12345678,YOU SOLD APPLE INC (AAPL),AAPL,"
-    "APPLE INC,Equity,,,,185.50,2,,0.00,0.00,,371.00,04/22/2024",
+_SAMPLE_RECORDS = [
+    {
+        "Run Date": "04/15/2024",
+        "Account": "Brokerage",
+        "Account Number": "Z12345678",
+        "Action": "YOU BOUGHT VANGUARD 500 ETF (VOO)",
+        "Symbol": "VOO",
+        "Description": "VANGUARD S&P 500 ETF",
+        "Type": "ETF",
+        "Quantity": "0.482",
+        "Price": "450.25",
+        "Amount": "-216.92",
+        "Commission": "0.00",
+        "Fees": "0.00",
+        "Settlement Date": "04/17/2024",
+    },
+    {
+        "Run Date": "04/01/2024",
+        "Account": "Brokerage",
+        "Account Number": "Z12345678",
+        "Action": "DIVIDEND RECEIVED",
+        "Symbol": "",
+        "Description": "CASH DIVIDEND",
+        "Type": "Cash",
+        "Quantity": "",
+        "Price": "",
+        "Amount": "25.00",
+        "Commission": "",
+        "Fees": "",
+        "Settlement Date": "",
+    },
+    {
+        "Run Date": "04/20/2024",
+        "Account": "Brokerage",
+        "Account Number": "Z12345678",
+        "Action": "YOU SOLD APPLE INC (AAPL)",
+        "Symbol": "AAPL",
+        "Description": "APPLE INC",
+        "Type": "Equity",
+        "Quantity": "2",
+        "Price": "185.50",
+        "Amount": "371.00",
+        "Commission": "0.00",
+        "Fees": "0.00",
+        "Settlement Date": "04/22/2024",
+    },
 ]
 
 
-def _make_csv(rows: list[str], with_metadata: bool = False) -> str:
-    lines = []
-    if with_metadata:
-        lines += [
-            "FID-NET-BENEFIT",
-            "",
-            "Account Number: Z12345678",
-            "",
-        ]
-    lines.append(_CSV_HEADER)
-    lines.extend(rows)
-    return "\n".join(lines)
+def _make_mock_sheet(records: list[dict]) -> MagicMock:
+    mock_ws = MagicMock()
+    mock_ws.get_all_records.return_value = records
+    mock_sheet = MagicMock()
+    mock_sheet.worksheet.return_value = mock_ws
+    return mock_sheet
 
 
-def _write_temp_csv(content: str) -> Path:
-    f = tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, encoding="utf-8")
-    f.write(content)
-    f.close()
-    return Path(f.name)
-
-
-def test_load_simple_csv():
-    """Parses standard CSV without metadata rows."""
-    path = _write_temp_csv(_make_csv(_SAMPLE_ROWS))
-    txs = load_fidelity_csv(path)
+def test_load_fidelity_sheet_returns_all_rows():
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet(_SAMPLE_RECORDS)):
+        txs = load_fidelity_sheet()
     assert len(txs) == 3
 
 
-def test_load_csv_with_metadata_header():
-    """Finds header row even when CSV has leading metadata lines."""
-    path = _write_temp_csv(_make_csv(_SAMPLE_ROWS, with_metadata=True))
-    txs = load_fidelity_csv(path)
-    assert len(txs) == 3
-
-
-def test_action_type_parsed_on_buy():
-    path = _write_temp_csv(_make_csv([_SAMPLE_ROWS[0]]))
-    txs = load_fidelity_csv(path)
+def test_load_fidelity_sheet_action_type_buy():
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
+        txs = load_fidelity_sheet()
     assert txs[0].action_type == "BUY"
 
 
-def test_fractional_quantity():
-    path = _write_temp_csv(_make_csv([_SAMPLE_ROWS[0]]))
-    txs = load_fidelity_csv(path)
+def test_load_fidelity_sheet_fractional_quantity():
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
+        txs = load_fidelity_sheet()
     assert txs[0].quantity == pytest.approx(0.482)
 
 
-def test_empty_symbol_row_imported():
+def test_load_fidelity_sheet_empty_symbol_imported():
     """Rows with empty Symbol (cash transactions) should be imported."""
-    path = _write_temp_csv(_make_csv([_SAMPLE_ROWS[1]]))
-    txs = load_fidelity_csv(path)
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[1]])):
+        txs = load_fidelity_sheet()
     assert len(txs) == 1
     assert txs[0].symbol is None
 
 
-def test_empty_csv_body():
-    """CSV with no data rows returns empty list."""
-    path = _write_temp_csv(_CSV_HEADER + "\n")
-    txs = load_fidelity_csv(path)
+def test_load_fidelity_sheet_empty_records():
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([])):
+        txs = load_fidelity_sheet()
     assert txs == []
+
+
+def test_load_fidelity_sheet_skips_missing_run_date():
+    records = [{"Run Date": "", "Action": "BUY", "Amount": "100"}]
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet(records)):
+        txs = load_fidelity_sheet()
+    assert txs == []
+
+
+def test_load_fidelity_sheet_uses_env_tab_name(monkeypatch):
+    monkeypatch.setenv("FIDELITY_TAB_NAME", "My Fidelity Tab")
+    mock_sheet = _make_mock_sheet([_SAMPLE_RECORDS[0]])
+    with patch("pymoney.ingest.fidelity._get_sheet", return_value=mock_sheet):
+        load_fidelity_sheet()
+    mock_sheet.worksheet.assert_called_once_with("My Fidelity Tab")

@@ -1,8 +1,16 @@
 # Runtime data
-data/finance.db
+data/*.db
+data/*.duckdb
 data/raw/
 !data/raw/.gitkeep
+*.db
+*.duckdb
 .env
+
+# Credentials / service account keys
+service_account.json
+credentials.json
+*.json
 
 # Python
 __pycache__/
