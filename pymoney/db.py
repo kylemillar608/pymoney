@@ -100,7 +100,8 @@ def init_schema(conn: duckdb.DuckDBPyConnection) -> None:
             group_name VARCHAR,
             is_income BOOLEAN DEFAULT FALSE,
             is_transfer BOOLEAN DEFAULT FALSE,
-            hide_from_budget BOOLEAN DEFAULT FALSE
+            hide_from_budget BOOLEAN DEFAULT FALSE,
+            exclude_from_reports BOOLEAN DEFAULT FALSE
         )
     """)
 

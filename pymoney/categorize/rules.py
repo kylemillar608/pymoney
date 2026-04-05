@@ -21,6 +21,27 @@ def _load_rules(config_path: Path | None = None) -> list[dict[str, Any]]:
     return data.get("categories", [])
 
 
+def sync_categories(
+    conn: "duckdb.DuckDBPyConnection",
+    config_path: Path | None = None,
+) -> None:
+    """Upsert category metadata from YAML config into the categories DB table."""
+    categories = _load_rules(config_path)
+    for cat in categories:
+        name = cat["name"]
+        group_name = cat.get("group")
+        is_income = bool(cat.get("is_income", False))
+        is_transfer = bool(cat.get("is_transfer", False))
+        hide_from_budget = bool(cat.get("hide_from_budget", False))
+        exclude_from_reports = bool(cat.get("exclude_from_reports", False))
+        conn.execute("DELETE FROM categories WHERE name = ?", [name])
+        conn.execute("""
+            INSERT INTO categories
+                (name, group_name, is_income, is_transfer, hide_from_budget, exclude_from_reports)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, [name, group_name, is_income, is_transfer, hide_from_budget, exclude_from_reports])
+
+
 def apply_rules(
     description: str,
     full_description: str | None = None,

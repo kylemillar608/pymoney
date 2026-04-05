@@ -76,11 +76,16 @@ categories:
     is_income: true
     rules:
       - regex: "INTEREST PAID|DIVIDEND|INTEREST CREDIT"
-  - name: Transfer
+  - name: Transfers
     group: Transfers
     is_transfer: true
     rules:
       - contains: ["TRANSFER", "ZELLE", "VENMO", "PAYPAL"]
+  - name: Credit Card Payment
+    group: Transfers
+    is_transfer: true
+    rules:
+      - contains: ["PAYMENT - THANK YOU", "AUTOPAY"]
   - name: Investment Purchase
     group: Investments
     is_transfer: true

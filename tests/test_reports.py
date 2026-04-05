@@ -10,6 +10,66 @@ import pytest
 from pymoney.db import get_in_memory_connection
 
 
+def _month_date(months_back: int) -> str:
+    """Return YYYY-MM-DD on the 15th of the month N months before today."""
+    today = date.today()
+    m = today.month - months_back
+    y = today.year
+    while m <= 0:
+        m += 12
+        y -= 1
+    return f"{y}-{m:02d}-15"
+
+
+@pytest.fixture
+def cf_conn():
+    """In-memory DB seeded for cash flow and category spotlight tests."""
+    conn = get_in_memory_connection()
+
+    conn.execute("""
+        INSERT INTO categories (name, group_name, is_income, is_transfer)
+        VALUES
+            ('Groceries',   'Food & Dining', FALSE, FALSE),
+            ('Restaurants', 'Food & Dining', FALSE, FALSE),
+            ('Paycheck',    'Income',        TRUE,  FALSE),
+            ('Transfers',   'Transfers',     FALSE, TRUE)
+    """)
+
+    conn.execute("""
+        INSERT INTO budget (id, category, month, amount)
+        VALUES
+            ('b-1', 'Groceries',   'default', 600.00),
+            ('b-2', 'Restaurants', 'default', 300.00)
+    """)
+
+    # Historical grocery amounts with slight variance so std_dev > 0
+    grocery_hist = [45, 55, 50, 48, 52, 50, 47, 53, 49, 51, 50]  # months 12..2 back
+    tx_rows = []
+    for idx, months_back in enumerate(range(12, 1, -1)):  # 12, 11, ..., 2
+        d = _month_date(months_back)
+        g = grocery_hist[idx]
+        tx_rows += [
+            f"('tx-g-{months_back}', '{d}', 'TRADER JOES', -{g}.00, 'Chase', 'Groceries')",
+            f"('tx-r-{months_back}', '{d}', 'RESTAURANTS', -400.00, 'Chase', 'Restaurants')",
+            f"('tx-p-{months_back}', '{d}', 'PAYROLL', 5000.00, 'Chase', 'Paycheck')",
+        ]
+
+    # "This month" = 1 month back — spike for Groceries, drift for Restaurants
+    d1 = _month_date(1)
+    tx_rows += [
+        f"('tx-g-1', '{d1}', 'TRADER JOES', -200.00, 'Chase', 'Groceries')",
+        f"('tx-r-1', '{d1}', 'RESTAURANTS', -400.00, 'Chase', 'Restaurants')",
+        f"('tx-p-1', '{d1}', 'PAYROLL', 5000.00, 'Chase', 'Paycheck')",
+        f"('tx-t-1', '{d1}', 'TRANSFER', -1000.00, 'Chase', 'Transfers')",
+    ]
+
+    conn.execute(
+        f"INSERT INTO transactions (id, date, description, amount, account, category) VALUES "
+        + ", ".join(tx_rows)
+    )
+    return conn
+
+
 @pytest.fixture
 def seeded_conn():
     """In-memory DB pre-seeded with sample data."""
@@ -169,3 +229,98 @@ class TestInvestmentReports:
         with patch("pymoney.reports.investments.get_connection", return_value=seeded_conn):
             df = investment_activity("2023-01")
         assert len(df) == 0
+
+
+class TestMonthlyCashFlow:
+    def test_returns_list_of_dicts(self, cf_conn):
+        from pymoney.reports.spending import get_monthly_cash_flow
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_monthly_cash_flow(window_months=13)
+        assert isinstance(result, list)
+        assert len(result) > 0
+        required_keys = {"month", "income", "expenses", "cash_flow"}
+        for row in result:
+            assert required_keys <= row.keys()
+
+    def test_cash_flow_arithmetic(self, cf_conn):
+        from pymoney.reports.spending import get_monthly_cash_flow
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_monthly_cash_flow(window_months=13)
+        for row in result:
+            assert abs(row["cash_flow"] - (row["income"] - row["expenses"])) < 0.01
+
+    def test_excludes_transfer_from_expenses(self, cf_conn):
+        """Transfer transactions must not inflate expenses."""
+        from pymoney.reports.spending import get_monthly_cash_flow
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_monthly_cash_flow(window_months=13)
+        # This month (1 month back): groceries $200 + restaurants $400 = $600.
+        # If transfers ($1000) were included, expenses would be $1600.
+        today = date.today()
+        if today.month == 1:
+            this_month = f"{today.year - 1}-12"
+        else:
+            this_month = f"{today.year}-{today.month - 1:02d}"
+        this_month_rows = [r for r in result if r["month"] == this_month]
+        assert len(this_month_rows) == 1
+        assert abs(this_month_rows[0]["expenses"] - 600.0) < 0.01
+
+    def test_income_captured(self, cf_conn):
+        """Positive transactions should appear as income."""
+        from pymoney.reports.spending import get_monthly_cash_flow
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_monthly_cash_flow(window_months=13)
+        for row in result:
+            assert row["income"] >= 0
+            assert row["expenses"] >= 0
+
+
+class TestCategorySpotlight:
+    def test_returns_at_most_five(self, cf_conn):
+        from pymoney.reports.spending import get_category_spotlight
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_category_spotlight(window_months=13)
+        assert len(result) <= 5
+
+    def test_required_keys(self, cf_conn):
+        from pymoney.reports.spending import get_category_spotlight
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_category_spotlight(window_months=13)
+        required = {"category", "group", "signal", "direction", "this_month_spend", "historical_avg", "budget"}
+        for row in result:
+            assert required <= row.keys()
+
+    def test_spike_detected_for_groceries(self, cf_conn):
+        """Groceries has a large z-score spike this month (200 vs ~50 historical)."""
+        from pymoney.reports.spending import get_category_spotlight
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_category_spotlight(window_months=13)
+        grocery_rows = [r for r in result if r["category"] == "Groceries"]
+        assert len(grocery_rows) == 1
+        assert grocery_rows[0]["signal"] == "SPIKE"
+        assert grocery_rows[0]["direction"] == "OVER"
+
+    def test_drift_detected_for_restaurants(self, cf_conn):
+        """Restaurants consistently spends $400 vs $300 budget (33% over = DRIFT)."""
+        from pymoney.reports.spending import get_category_spotlight
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_category_spotlight(window_months=13)
+        restaurant_rows = [r for r in result if r["category"] == "Restaurants"]
+        assert len(restaurant_rows) == 1
+        assert restaurant_rows[0]["signal"] in {"DRIFT", "CHRONIC"}
+        assert restaurant_rows[0]["direction"] == "OVER"
+
+    def test_excludes_transfer_categories(self, cf_conn):
+        """is_transfer categories must never appear in the spotlight."""
+        from pymoney.reports.spending import get_category_spotlight
+        with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
+            result = get_category_spotlight(window_months=13)
+        categories = [r["category"] for r in result]
+        assert "Transfers" not in categories
+
+    def test_empty_db_returns_empty_list(self):
+        from pymoney.reports.spending import get_category_spotlight
+        conn = get_in_memory_connection()
+        with patch("pymoney.reports.spending.get_connection", return_value=conn):
+            result = get_category_spotlight(window_months=12)
+        assert result == []

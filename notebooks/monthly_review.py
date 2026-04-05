@@ -7,132 +7,213 @@ app = marimo.App(width="medium")
 @app.cell
 def _():
     import marimo as mo
-    from datetime import date
-
-    today = date.today()
-    current_month = today.strftime("%Y-%m")
-    return mo, today, current_month
+    return mo,
 
 
 @app.cell
-def _(mo, current_month, today):
-    mo.md(f"""
-    # Monthly Review — {current_month}
+def _(mo):
+    from datetime import date
 
-    _Last updated: {today}_
+    today = date.today()
+    if today.month == 1:
+        _current = f"{today.year - 1}-12"
+    else:
+        _current = f"{today.year}-{today.month - 1:02d}"
+
+    mo.md(f"""
+    # Monthly Overview — {_current}
+
+    _Cash flow · aggregate stats · category spotlight_
     """)
-    return
+    return today,
 
 
 @app.cell
 def _():
     from pymoney.db import get_connection
+    from pymoney.categorize.rules import sync_categories
+
     conn = get_connection()
+    sync_categories(conn)
     return conn,
 
 
 @app.cell
 def _(mo):
-    mo.md("## Net Worth")
-    return
+    window_slider = mo.ui.slider(
+        start=6,
+        stop=24,
+        step=6,
+        value=12,
+        label="Rolling window (months)",
+    )
+    window_slider
+    return window_slider,
 
 
-@app.cell
-def _(conn):
-    import plotly.express as px
-    from pymoney.reports.net_worth import net_worth_over_time
-
-    nw_df = net_worth_over_time(months=12)
-    if not nw_df.empty:
-        fig_nw = px.line(
-            nw_df,
-            x="month",
-            y="net_worth",
-            title="Net Worth (12 months)",
-            labels={"net_worth": "Net Worth ($)", "month": "Month"},
-        )
-        fig_nw
-    return fig_nw, nw_df, px
-
+# ── Section 1: Monthly Cash Flow ──────────────────────────────────────────────
 
 @app.cell
 def _(mo):
-    mo.md("## Account Summaries")
+    mo.md("## Section 1 — Monthly Cash Flow")
     return
 
 
 @app.cell
-def _(mo, conn):
-    from pymoney.reports.net_worth import current_net_worth
+def _(window_slider):
+    from pymoney.reports.spending import get_monthly_cash_flow
 
-    balance_df = current_net_worth()
-    mo.ui.table(balance_df) if not balance_df.empty else mo.md("_No balance data_")
-    return balance_df,
-
-
-@app.cell
-def _(mo):
-    mo.md("## Spending vs Budget")
-    return
+    cf_data = get_monthly_cash_flow(window_months=window_slider.value)
+    return cf_data,
 
 
 @app.cell
-def _(mo, current_month, conn):
+def _(cf_data, mo):
     import plotly.graph_objects as go
-    from pymoney.reports.spending import spending_by_category
 
-    spend_df = spending_by_category(current_month)
-    if not spend_df.empty:
-        fig_spend = go.Figure(data=[
-            go.Bar(name="Actual", x=spend_df["category"], y=spend_df["actual"]),
-            go.Bar(name="Budget", x=spend_df["category"], y=spend_df["budget"]),
-        ])
-        fig_spend.update_layout(
+    if cf_data:
+        _months = [d["month"] for d in cf_data]
+        _income = [d["income"] for d in cf_data]
+        _expenses = [d["expenses"] for d in cf_data]
+        _cash_flow = [d["cash_flow"] for d in cf_data]
+
+        _fig = go.Figure()
+        _fig.add_trace(go.Bar(
+            name="Income",
+            x=_months,
+            y=_income,
+            marker_color="seagreen",
+            offsetgroup=0,
+        ))
+        _fig.add_trace(go.Bar(
+            name="Expenses",
+            x=_months,
+            y=_expenses,
+            marker_color="crimson",
+            offsetgroup=1,
+        ))
+        _fig.add_trace(go.Scatter(
+            name="Cash Flow",
+            x=_months,
+            y=_cash_flow,
+            mode="lines+markers",
+            line=dict(color="steelblue", width=2),
+        ))
+        _fig.update_layout(
             barmode="group",
-            title=f"Spending vs Budget — {current_month}",
+            title="Monthly Cash Flow",
+            xaxis_title="Month",
+            yaxis_title="Amount ($)",
+            legend=dict(orientation="h", y=1.1),
         )
-        fig_spend
-    return fig_spend, go, spend_df
+        _fig
+    else:
+        mo.md("_No cash flow data available_")
+    return go,
 
+
+# ── Section 2: Aggregate Stats ────────────────────────────────────────────────
 
 @app.cell
 def _(mo):
-    mo.md("## Top Merchants")
+    mo.md("## Section 2 — Aggregate Stats")
     return
 
 
 @app.cell
-def _(mo, current_month, conn):
-    from pymoney.reports.spending import top_merchants
+def _(cf_data, mo):
+    import numpy as np
 
-    merchants_df = top_merchants(current_month, n=10)
-    mo.ui.table(merchants_df) if not merchants_df.empty else mo.md("_No transaction data_")
-    return merchants_df,
+    if not cf_data:
+        mo.md("_No data available_")
+    else:
+        _incomes = [d["income"] for d in cf_data]
+        _expenses = [d["expenses"] for d in cf_data]
+        _flows = [d["cash_flow"] for d in cf_data]
 
+        if len(cf_data) >= 3:
+            def _trim(series):
+                s = sorted(series)
+                return s[1:-1]
+
+            _ti = _trim(_incomes)
+            _te = _trim(_expenses)
+            _tf = _trim(_flows)
+            _n = len(_ti)
+            _caption_suffix = f"Based on {_n} months (trimmed)"
+        else:
+            _ti, _te, _tf = _incomes, _expenses, _flows
+            _n = len(_ti)
+            _caption_suffix = f"Based on {_n} months"
+
+        _avg_i = float(np.mean(_ti))
+        _std_i = float(np.std(_ti))
+        _avg_e = float(np.mean(_te))
+        _std_e = float(np.std(_te))
+        _avg_f = float(np.mean(_tf))
+        _std_f = float(np.std(_tf))
+
+        mo.hstack([
+            mo.stat(
+                value=f"${_avg_i:,.0f}",
+                label="Avg Monthly Income",
+                caption=f"± ${_std_i:,.0f} · {_caption_suffix}",
+                bordered=True,
+            ),
+            mo.stat(
+                value=f"${_avg_e:,.0f}",
+                label="Avg Monthly Expenses",
+                caption=f"± ${_std_e:,.0f} · {_caption_suffix}",
+                bordered=True,
+                target_direction="decrease",
+            ),
+            mo.stat(
+                value=f"${_avg_f:,.0f}",
+                label="Avg Cash Flow",
+                caption=f"± ${_std_f:,.0f} · {_caption_suffix}",
+                bordered=True,
+            ),
+        ])
+    return np,
+
+
+# ── Section 3: Category Spotlight ────────────────────────────────────────────
 
 @app.cell
 def _(mo):
-    mo.md("## Investment Activity")
+    mo.md("## Section 3 — Category Spotlight")
     return
 
 
 @app.cell
-def _(mo, current_month, conn):
-    from pymoney.reports.investments import investment_activity
+def _(window_slider):
+    from pymoney.reports.spending import get_category_spotlight
 
-    inv_df = investment_activity(current_month)
-    mo.ui.table(inv_df) if not inv_df.empty else mo.md("_No investment activity this month_")
-    return inv_df,
+    spotlight = get_category_spotlight(window_months=window_slider.value)
+    return spotlight,
 
 
 @app.cell
-def _(mo):
-    mo.md("""
-    ## Notes
+def _(spotlight, mo):
+    import pandas as pd
 
-    _Add monthly notes here._
-    """)
-    return
+    if spotlight:
+        _rows = []
+        for _item in spotlight:
+            _budget_str = f"${_item['budget']:,.0f}" if _item['budget'] else "—"
+            _rows.append({
+                "Category": _item["category"],
+                "Group": _item["group"] or "—",
+                "Signal": f"{_item['signal']} {_item['direction']}",
+                "This Month": f"${_item['this_month_spend']:,.0f}",
+                "Hist. Avg": f"${_item['historical_avg']:,.0f}",
+                "Budget": _budget_str,
+            })
+        _df = pd.DataFrame(_rows)
+        mo.ui.table(_df, selection=None)
+    else:
+        mo.md("_No categories to spotlight_")
+    return pd,
 
 
 if __name__ == "__main__":
