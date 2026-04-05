@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
+
+if TYPE_CHECKING:
+    import duckdb
 
 from pymoney.db import get_connection
 
@@ -22,7 +25,7 @@ def _load_rules(config_path: Path | None = None) -> list[dict[str, Any]]:
 
 
 def sync_categories(
-    conn: "duckdb.DuckDBPyConnection",
+    conn: duckdb.DuckDBPyConnection,
     config_path: Path | None = None,
 ) -> None:
     """Upsert category metadata from YAML config into the categories DB table."""

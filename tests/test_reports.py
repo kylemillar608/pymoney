@@ -44,28 +44,28 @@ def cf_conn():
 
     # Historical grocery amounts with slight variance so std_dev > 0
     grocery_hist = [45, 55, 50, 48, 52, 50, 47, 53, 49, 51, 50]  # months 12..2 back
-    tx_rows = []
+    tx_params = []
     for idx, months_back in enumerate(range(12, 1, -1)):  # 12, 11, ..., 2
         d = _month_date(months_back)
         g = grocery_hist[idx]
-        tx_rows += [
-            f"('tx-g-{months_back}', '{d}', 'TRADER JOES', -{g}.00, 'Chase', 'Groceries')",
-            f"('tx-r-{months_back}', '{d}', 'RESTAURANTS', -400.00, 'Chase', 'Restaurants')",
-            f"('tx-p-{months_back}', '{d}', 'PAYROLL', 5000.00, 'Chase', 'Paycheck')",
+        tx_params += [
+            (f"tx-g-{months_back}", d, "TRADER JOES", float(-g), "Chase", "Groceries"),
+            (f"tx-r-{months_back}", d, "RESTAURANTS", -400.00, "Chase", "Restaurants"),
+            (f"tx-p-{months_back}", d, "PAYROLL", 5000.00, "Chase", "Paycheck"),
         ]
 
     # "This month" = 1 month back — spike for Groceries, drift for Restaurants
     d1 = _month_date(1)
-    tx_rows += [
-        f"('tx-g-1', '{d1}', 'TRADER JOES', -200.00, 'Chase', 'Groceries')",
-        f"('tx-r-1', '{d1}', 'RESTAURANTS', -400.00, 'Chase', 'Restaurants')",
-        f"('tx-p-1', '{d1}', 'PAYROLL', 5000.00, 'Chase', 'Paycheck')",
-        f"('tx-t-1', '{d1}', 'TRANSFER', -1000.00, 'Chase', 'Transfers')",
+    tx_params += [
+        ("tx-g-1", d1, "TRADER JOES", -200.00, "Chase", "Groceries"),
+        ("tx-r-1", d1, "RESTAURANTS", -400.00, "Chase", "Restaurants"),
+        ("tx-p-1", d1, "PAYROLL", 5000.00, "Chase", "Paycheck"),
+        ("tx-t-1", d1, "TRANSFER", -1000.00, "Chase", "Transfers"),
     ]
 
-    conn.execute(
-        f"INSERT INTO transactions (id, date, description, amount, account, category) VALUES "
-        + ", ".join(tx_rows)
+    conn.executemany(
+        "INSERT INTO transactions (id, date, description, amount, account, category) VALUES (?,?,?,?,?,?)",
+        tx_params,
     )
     return conn
 
