@@ -1,8 +1,8 @@
 # pymoney
 
 Personal finance system built on DuckDB + Marimo. Ingests transactions from
-[Tiller](https://www.tillerhq.com/) (Google Sheets) and investment activity
-from Fidelity CSV exports, then surfaces spending, net worth, and investment
+[Tiller](https://www.tillerhq.com/) and investment activity from Fidelity —
+all via Google Sheets tabs — then surfaces spending, net worth, and investment
 reports as reactive notebooks.
 
 ## Setup
@@ -62,7 +62,7 @@ committed to the repo:
 **After cloning, install the pre-commit hook:**
 
 ```bash
-pymoney install-hooks
+uv run pymoney install-hooks
 ```
 
 Never commit `.env`, `service_account.json`, or any data exports.
@@ -71,20 +71,20 @@ Never commit `.env`, `service_account.json`, or any data exports.
 
 ```bash
 # Pull everything (Tiller + Fidelity from Google Sheets)
-pymoney ingest all
+uv run pymoney ingest all
 
 # Tiller only — optionally limit to recent data
-pymoney ingest tiller
-pymoney ingest tiller --since 2025-01-01
+uv run pymoney ingest tiller
+uv run pymoney ingest tiller --since 2025-01-01
 
 # Fidelity only (reads from Fidelity tab in Google Sheets)
-pymoney ingest fidelity
+uv run pymoney ingest fidelity
 
 # Re-run category rules on uncategorized transactions
-pymoney categorize
+uv run pymoney categorize
 
 # Check what's in the database
-pymoney status
+uv run pymoney status
 ```
 
 ## Views
@@ -94,16 +94,16 @@ scripts, not `.ipynb` files.
 
 ```bash
 # Monthly spending review (vs budget)
-marimo run notebooks/monthly_review.py
+uv run marimo run notebooks/monthly_review.py
 
 # Drill down into a category or time range
-marimo run notebooks/drilldown.py
+uv run marimo run notebooks/drilldown.py
 ```
 
 To edit a notebook interactively:
 
 ```bash
-marimo edit notebooks/monthly_review.py
+uv run marimo edit notebooks/monthly_review.py
 ```
 
 ## Configuration
