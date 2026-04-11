@@ -221,6 +221,20 @@ def tx_review() -> None:
     run_review(conn)
 
 
+# ── sync ──────────────────────────────────────────────────────────────────────
+
+@cli.command()
+def sync() -> None:
+    """Sync categories and budget from config YAML files into the database."""
+    from pymoney.budget import sync_budget
+    from pymoney.categorize.rules import sync_categories
+
+    conn = get_connection()
+    sync_categories(conn)
+    budget_count = sync_budget(conn)
+    click.echo(f"Synced categories and {budget_count} budget targets.")
+
+
 # ── misc ──────────────────────────────────────────────────────────────────────
 
 @cli.command("install-hooks")

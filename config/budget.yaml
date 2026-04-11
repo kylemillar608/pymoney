@@ -1,16 +1,31 @@
-defaults:
-  Rent: 2500
-  Utilities: 200
-  Groceries: 600
-  Restaurants: 300
-  Gas & Fuel: 150
-  Parking & Tolls: 50
-  Rideshare: 75
-  Auto Insurance: 150
-  Health Insurance: 200
-  Pharmacy: 50
-  Doctor & Medical: 100
-  Streaming: 60
-  Gym & Fitness: 50
-  Clothing: 150
-  Electronics: 100
+# Monthly budget targets (used as defaults for the category spotlight report).
+# Amounts are positive regardless of income/expense direction.
+budget:
+  # Primary income
+  Paycheck:       9800.00
+  Google Equity:  3000.00
+
+  # Mandatory expenses
+  Rent:                3500.00
+  Internet:              89.99
+  Power/Gas:            200.00
+  "Renter's Insurance": 139.00
+  Groceries:            600.00
+  House:                 50.00
+  Hygiene:               75.00
+  Transit:               35.00
+  Phone:                117.24
+
+  # Discretionary expenses
+  Eating out:    250.00
+  Travel:        500.00
+  Clothes:       100.00
+  Entertainment: 100.00
+  Gifts:          70.83
+  Hobbies:       100.00
+  Amazon:        100.00
+
+  # Savings & investments
+  General Savings: 500.00
+  Crypto Inv:      500.00
+  Brokerage Inv:  1000.00

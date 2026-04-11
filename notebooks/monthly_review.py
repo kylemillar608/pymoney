@@ -30,11 +30,13 @@ def _(mo):
 
 @app.cell
 def _():
-    from pymoney.db import get_connection
+    from pymoney.budget import sync_budget
     from pymoney.categorize.rules import sync_categories
+    from pymoney.db import get_connection
 
     conn = get_connection()
     sync_categories(conn)
+    sync_budget(conn)
     return conn,
 
 
