@@ -33,7 +33,7 @@ def ingest_tiller(since: str | None) -> None:
 
     tx_count = ingest_transactions(since_date=since_date)
     bal_count = ingest_balances(since_date=since_date)
-    click.echo(f"Ingested {tx_count} transactions, {bal_count} balance records from Tiller.")
+    click.echo(f"Ingested {tx_count} spending transactions, {bal_count} account balance records from Tiller.")
 
 
 @ingest.command("fidelity")
@@ -64,7 +64,7 @@ def ingest_all() -> None:
 
     tx_count = ingest_transactions()
     bal_count = ingest_balances()
-    click.echo(f"Tiller: {tx_count} transactions, {bal_count} balance records.")
+    click.echo(f"Tiller: {tx_count} spending transactions, {bal_count} account balance records.")
 
     inv_count = _ingest_fidelity()
     click.echo(f"Fidelity: {inv_count} investment transactions.")
@@ -118,7 +118,7 @@ def status() -> None:
     inv_row = conn.execute("SELECT COUNT(*) FROM investment_transactions").fetchone()
 
     tx_count, tx_min, tx_max = tx_row
-    click.echo(f"Transactions:            {tx_count:>8}")
+    click.echo(f"Spending transactions:   {tx_count:>8}")
     if tx_min:
         click.echo(f"  Date range:            {tx_min} → {tx_max}")
     click.echo(f"  Uncategorized:         {uncategorized:>8}")
