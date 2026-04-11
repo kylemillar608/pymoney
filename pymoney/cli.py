@@ -90,9 +90,33 @@ def _ingest_result(*args: object, **kwargs: object) -> None:
 def categorize(run_all: bool) -> None:
     """Run categorization rules on transactions."""
     if run_all:
-        from pymoney.categorize.rules import categorize_all
+        from pymoney.categorize.rules import categorize_all, preview_categorize_all
+
+        changes = preview_categorize_all()
+        if not changes:
+            click.echo("No category changes — rules already match existing categories.")
+            return
+
+        total = sum(r["count"] for r in changes)
+        click.echo()
+        click.echo(f"  {'Current':<25} {'New':<25} {'Description':<32} {'#':>5}")
+        click.echo("  " + "─" * 90)
+        for r in changes[:50]:
+            click.echo(
+                f"  {r['old_category']:<25} {r['new_category']:<25}"
+                f" {r['description'][:32]:<32} {r['count']:>5}"
+            )
+        if len(changes) > 50:
+            click.echo(f"\n  ... {len(changes) - 50} more groups")
+        click.echo(f"\n  {total} transaction(s) across {len(changes)} description group(s) would change.")
+        click.echo()
+
+        if not click.confirm("Apply changes?", default=False):
+            click.echo("Cancelled.")
+            return
+
         count = categorize_all()
-        click.echo(f"Updated {count} transactions (all mode).")
+        click.echo(f"Updated {count} transactions.")
     else:
         from pymoney.categorize.rules import categorize_uncategorized
         count = categorize_uncategorized()

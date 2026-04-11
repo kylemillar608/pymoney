@@ -152,6 +152,37 @@ def categorize_uncategorized(
     return updated
 
 
+def preview_categorize_all(
+    db_path: str | None = None,
+    config_path: Path | None = None,
+) -> list[dict]:
+    """
+    Dry-run of categorize_all: return rows where the rule result differs from
+    the current category (i.e. the category would *change*, not just be filled in).
+
+    Returns list of dicts: {old_category, new_category, description, count},
+    sorted by count descending.
+    """
+    conn = get_connection(db_path)
+    rows = conn.execute("""
+        SELECT description, full_description, account, institution, amount, category
+        FROM transactions
+        WHERE category IS NOT NULL AND category != ''
+    """).fetchall()
+
+    tally: dict[tuple, int] = {}
+    for desc, full_desc, acct, inst, amount, current in rows:
+        proposed = apply_rules(desc, full_desc, acct, inst, amount, config_path=config_path)
+        if proposed and proposed != current:
+            key = (current, proposed, desc)
+            tally[key] = tally.get(key, 0) + 1
+
+    return [
+        {"old_category": k[0], "new_category": k[1], "description": k[2], "count": v}
+        for k, v in sorted(tally.items(), key=lambda x: -x[1])
+    ]
+
+
 def categorize_all(
     db_path: str | None = None,
     config_path: Path | None = None,
