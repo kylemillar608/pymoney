@@ -22,7 +22,38 @@ def _():
     return conn,
 
 
-# ── Filters ───────────────────────────────────────────────────────────────────
+# ── Transactions ──────────────────────────────────────────────────────────────
+
+@app.cell
+def _(mo):
+    mo.md("## Transactions")
+
+
+@app.cell
+def _(conn, mo):
+    _transactions = mo.sql(
+        """
+        SELECT
+            date,
+            description,
+            amount,
+            category,
+            account,
+            institution
+        FROM transactions
+        ORDER BY date DESC, id DESC
+        """,
+        engine=conn,
+    )
+    return _transactions,
+
+
+# ── Filtered View ─────────────────────────────────────────────────────────────
+
+@app.cell
+def _(mo):
+    mo.md("## Filtered View")
+
 
 @app.cell
 def _(conn, mo):
@@ -45,8 +76,6 @@ def _(conn, mo):
     mo.hstack([cat_filter, acct_filter, search_filter, limit_filter], gap="1rem")
     return acct_filter, cat_filter, limit_filter, search_filter,
 
-
-# ── Results ───────────────────────────────────────────────────────────────────
 
 @app.cell
 def _(acct_filter, cat_filter, conn, limit_filter, mo, search_filter):
