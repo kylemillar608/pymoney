@@ -55,7 +55,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    return mo.md("## Cash Flow"),
+    mo.md("## Cash Flow")
 
 
 @app.cell
@@ -71,33 +71,33 @@ def _(cf_data, mo):
     import plotly.graph_objects as go
 
     if cf_data:
-        months = [d["month"] for d in cf_data]
-        income = [d["income"] for d in cf_data]
-        expenses = [d["expenses"] for d in cf_data]
-        cash_flow = [d["cash_flow"] for d in cf_data]
+        _months = [d["month"] for d in cf_data]
+        _income = [d["income"] for d in cf_data]
+        _expenses = [d["expenses"] for d in cf_data]
+        _cash_flow = [d["cash_flow"] for d in cf_data]
 
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            name="Income", x=months, y=income,
+        _fig = go.Figure()
+        _fig.add_trace(go.Bar(
+            name="Income", x=_months, y=_income,
             marker_color="seagreen", offsetgroup=0,
         ))
-        fig.add_trace(go.Bar(
-            name="Expenses", x=months, y=expenses,
+        _fig.add_trace(go.Bar(
+            name="Expenses", x=_months, y=_expenses,
             marker_color="crimson", offsetgroup=1,
         ))
-        fig.add_trace(go.Scatter(
-            name="Cash Flow", x=months, y=cash_flow,
+        _fig.add_trace(go.Scatter(
+            name="Cash Flow", x=_months, y=_cash_flow,
             mode="lines+markers",
             line=dict(color="steelblue", width=2),
         ))
-        fig.update_layout(
+        _fig.update_layout(
             barmode="group",
             xaxis_title="Month",
             yaxis_title="Amount ($)",
             legend=dict(orientation="h", y=1.1),
             margin=dict(t=40),
         )
-        _display = mo.ui.plotly(fig)
+        _display = mo.ui.plotly(_fig)
     else:
         _display = mo.md("_No cash flow data available. Run `pymoney ingest tiller` first._")
 
@@ -109,7 +109,7 @@ def _(cf_data, mo):
 
 @app.cell
 def _(mo):
-    return mo.md("## Aggregate Stats"),
+    mo.md("## Aggregate Stats")
 
 
 @app.cell
@@ -119,9 +119,9 @@ def _(cf_data, mo):
     if not cf_data or len(cf_data) < 2:
         _display = mo.md("_Not enough data for aggregate stats (need at least 2 months)._")
     else:
-        incomes = [d["income"] for d in cf_data]
-        expenses = [d["expenses"] for d in cf_data]
-        flows = [d["cash_flow"] for d in cf_data]
+        _incomes = [d["income"] for d in cf_data]
+        _expenses = [d["expenses"] for d in cf_data]
+        _flows = [d["cash_flow"] for d in cf_data]
 
         def _trimmed_stats(series):
             s = sorted(series)
@@ -131,28 +131,28 @@ def _(cf_data, mo):
             std = variance ** 0.5
             return mean, std, len(trimmed)
 
-        avg_i, std_i, n = _trimmed_stats(incomes)
-        avg_e, std_e, _ = _trimmed_stats(expenses)
-        avg_f, std_f, _ = _trimmed_stats(flows)
-        caption = f"Based on {n} months (trimmed)"
+        _avg_i, _std_i, _n = _trimmed_stats(_incomes)
+        _avg_e, _std_e, _ = _trimmed_stats(_expenses)
+        _avg_f, _std_f, _ = _trimmed_stats(_flows)
+        _caption = f"Based on {_n} months (trimmed)"
 
         _display = mo.hstack([
             mo.stat(
-                value=f"${avg_i:,.0f}",
+                value=f"${_avg_i:,.0f}",
                 label="Avg Monthly Income",
-                caption=f"± ${std_i:,.0f} · {caption}",
+                caption=f"± ${_std_i:,.0f} · {_caption}",
                 bordered=True,
             ),
             mo.stat(
-                value=f"${avg_e:,.0f}",
+                value=f"${_avg_e:,.0f}",
                 label="Avg Monthly Expenses",
-                caption=f"± ${std_e:,.0f} · {caption}",
+                caption=f"± ${_std_e:,.0f} · {_caption}",
                 bordered=True,
             ),
             mo.stat(
-                value=f"${avg_f:,.0f}",
+                value=f"${_avg_f:,.0f}",
                 label="Avg Cash Flow",
-                caption=f"± ${std_f:,.0f} · {caption}",
+                caption=f"± ${_std_f:,.0f} · {_caption}",
                 bordered=True,
             ),
         ])
@@ -165,7 +165,7 @@ def _(cf_data, mo):
 
 @app.cell
 def _(mo):
-    return mo.md("## Category Spotlight"),
+    mo.md("## Category Spotlight")
 
 
 @app.cell
@@ -181,18 +181,18 @@ def _(spotlight, mo):
     import pandas as pd
 
     if spotlight:
-        rows = []
+        _rows = []
         for item in spotlight:
-            budget_str = f"${item['budget']:,.0f}" if item['budget'] else "—"
-            rows.append({
+            _budget_str = f"${item['budget']:,.0f}" if item['budget'] else "—"
+            _rows.append({
                 "Category": item["category"],
                 "Group": item["group"] or "—",
                 "Signal": f"{item['signal']} {item['direction']}",
                 "This Month": f"${item['this_month_spend']:,.0f}",
                 "Hist. Avg": f"${item['historical_avg']:,.0f}",
-                "Budget": budget_str,
+                "Budget": _budget_str,
             })
-        _display = mo.ui.table(pd.DataFrame(rows), selection=None)
+        _display = mo.ui.table(pd.DataFrame(_rows), selection=None)
     else:
         _display = mo.md("_No category signals detected._")
 
