@@ -1,7 +1,7 @@
 import marimo
 
-__generated_with = "0.3.0"
-app = marimo.App(width="medium")
+__generated_with = "0.22.4"
+app = marimo.App(width="full")
 
 
 @app.cell
@@ -11,79 +11,76 @@ def _():
 
 
 @app.cell
-def _(mo):
-    mo.md("# Drilldown — Ad Hoc Analysis")
-    return
-
-
-@app.cell
 def _():
+    from pymoney.budget import sync_budget
+    from pymoney.categorize.rules import sync_categories
     from pymoney.db import get_connection
+
     conn = get_connection()
+    sync_categories(conn)
+    sync_budget(conn)
     return conn,
 
 
-@app.cell
-def _(mo, conn):
-    # Show available tables and schema
-    tables = conn.execute("""
-        SELECT table_name FROM information_schema.tables
-        WHERE table_schema = 'main'
-        ORDER BY table_name
-    """).fetchdf()
-
-    schema_info = []
-    for table in tables["table_name"].tolist():
-        cols = conn.execute(f"""
-            SELECT column_name, data_type
-            FROM information_schema.columns
-            WHERE table_name = '{table}'
-            ORDER BY ordinal_position
-        """).fetchdf()
-        schema_info.append(f"**{table}**: " + ", ".join(
-            f"`{r['column_name']}` ({r['data_type']})" for _, r in cols.iterrows()
-        ))
-
-    mo.md("## Available Tables\n\n" + "\n\n".join(schema_info))
-    return schema_info, tables
-
+# ── Filters ───────────────────────────────────────────────────────────────────
 
 @app.cell
-def _(mo):
-    # SQL query cell — edit the query below
-    query = mo.ui.text_area(
-        value="SELECT * FROM transactions LIMIT 10",
-        label="SQL Query",
-        rows=6,
-    )
-    query
-    return query,
+def _(conn, mo):
+    _categories = ["All"] + [
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT category FROM transactions WHERE category IS NOT NULL ORDER BY category"
+        ).fetchall()
+    ]
+    _accounts = ["All"] + [
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT account FROM transactions ORDER BY account"
+        ).fetchall()
+    ]
+
+    cat_filter = mo.ui.dropdown(_categories, value="All", label="Category")
+    acct_filter = mo.ui.dropdown(_accounts, value="All", label="Account")
+    search_filter = mo.ui.text(placeholder="Search description…", label="Description")
+    limit_filter = mo.ui.dropdown(["100", "500", "1000", "All"], value="100", label="Limit")
+
+    mo.hstack([cat_filter, acct_filter, search_filter, limit_filter], gap="1rem")
+    return acct_filter, cat_filter, limit_filter, search_filter,
 
 
-@app.cell
-def _(conn, mo, query):
-    import pandas as pd
-
-    try:
-        result_df = conn.execute(query.value).df()
-        mo.ui.table(result_df)
-    except Exception as e:
-        mo.md(f"**Error:** {e}")
-    return pd, result_df
-
-
-@app.cell
-def _(mo):
-    mo.md("## Python Analysis Cell")
-    return
-
+# ── Results ───────────────────────────────────────────────────────────────────
 
 @app.cell
-def _(conn, pd):
-    # Write your analysis here — conn and pd are available
-    df = conn.execute("SELECT COUNT(*) AS total FROM transactions").df()
-    df
-    return df,
+def _(acct_filter, cat_filter, conn, limit_filter, mo, search_filter):
+    _where = ["1=1"]
+    _params = []
+
+    if cat_filter.value != "All":
+        _where.append("category = ?")
+        _params.append(cat_filter.value)
+
+    if acct_filter.value != "All":
+        _where.append("account = ?")
+        _params.append(acct_filter.value)
+
+    if search_filter.value.strip():
+        _where.append("description ILIKE ?")
+        _params.append(f"%{search_filter.value.strip()}%")
+
+    _limit = "" if limit_filter.value == "All" else f"LIMIT {limit_filter.value}"
+
+    _df = conn.execute(f"""
+        SELECT date, description, amount, category, account, institution
+        FROM transactions
+        WHERE {' AND '.join(_where)}
+        ORDER BY date DESC, id DESC
+        {_limit}
+    """, _params).df()
+
+    _net = _df["amount"].sum() if not _df.empty else 0
+
+    mo.vstack([
+        mo.md(f"**{len(_df):,} transactions** · net `${_net:,.2f}`"),
+        mo.ui.table(_df, selection=None),
+    ])
 
 
 if __name__ == "__main__":
