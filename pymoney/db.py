@@ -4,11 +4,11 @@ import os
 from pathlib import Path
 
 import duckdb
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv()
+load_dotenv(find_dotenv(usecwd=True))
 
-_DEFAULT_DB_PATH = "data/finance.db"
+_DEFAULT_DB_PATH = str(Path(__file__).parent.parent / "data" / "finance.db")
 
 
 def get_connection(db_path: str | None = None) -> duckdb.DuckDBPyConnection:
