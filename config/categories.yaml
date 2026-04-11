@@ -92,3 +92,117 @@ categories:
     hide_from_budget: true
     rules:
       - regex: "FIDELITY|VANGUARD|SCHWAB|INVESTMENT|BROKERAGE"
+
+  # ── User's actual Tiller categories ──────────────────────────────────────────
+
+  # Transfers & investments (excluded from cash flow reports)
+  - name: CC Payment
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: General Savings
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer to Savings
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer from Savings
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer to Checking
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer from Checking
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer to Brokerage
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer from Brokerage
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Transfer from Temp Equity
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+  - name: Brokerage Inv
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Brokerage Transactions
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: 401k Transactions
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Roth Transactions
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Equity Awards Transactions
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Temp Equity Transactions
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Crypto Inv
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+  - name: Investments
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+
+  # Income
+  - name: Google Equity
+    group: Income
+    is_income: true
+  - name: Reimbursements
+    group: Income
+    is_income: true
+
+  # Spending categories
+  - name: Eating out
+    group: Food & Dining
+  - name: Power/Gas
+    group: Utilities
+  - name: Internet
+    group: Utilities
+  - name: Phone
+    group: Utilities
+  - name: Transit
+    group: Transport
+  - name: Travel
+    group: Travel
+  - name: Clothes
+    group: Shopping
+  - name: Hobbies
+    group: Entertainment
+  - name: Entertainment
+    group: Entertainment
+  - name: Subscriptions
+    group: Entertainment
+  - name: House
+    group: Home
+  - name: "Renter's Insurance"
+    group: Home
+  - name: Pet Insurance
+    group: Pets
+  - name: Hygiene
+    group: Personal Care
+  - name: Gifts
+    group: Misc
+  - name: Misc
+    group: Misc
