@@ -19,6 +19,7 @@ dependencies = [
     "google-auth>=2.0",
     "click>=8.0",
     "python-dotenv>=1.0",
+    "sqlglot>=20.0",
 ]
 
 [project.scripts]
