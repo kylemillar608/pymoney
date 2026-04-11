@@ -15,6 +15,10 @@ from pymoney.db import get_connection
 
 load_dotenv()
 
+# When False, the category column from Tiller is ignored and transactions are ingested
+# uncategorized so that pymoney's own rules own classification going forward.
+_IMPORT_CATEGORIES = os.getenv("TILLER_IMPORT_CATEGORIES", "true").strip().lower() != "false"
+
 _SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets.readonly",
     "https://www.googleapis.com/auth/drive.readonly",
@@ -98,7 +102,7 @@ def fetch_transactions(since_date: date | None = None) -> list[dict[str, Any]]:
             "description": str(r.get("Description", "")).strip(),
             "full_description": str(r.get("Full Description", "")).strip() or None,
             "amount": _parse_decimal(r.get("Amount", 0)),
-            "category": str(r.get("Category", "")).strip() or None,
+            "category": (str(r.get("Category", "")).strip() or None) if _IMPORT_CATEGORIES else None,
             "account": str(r.get("Account", "")).strip(),
             "account_number": str(r.get("Account #", "")).strip() or None,
             "institution": str(r.get("Institution", "")).strip() or None,

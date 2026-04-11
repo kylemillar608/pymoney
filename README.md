@@ -116,11 +116,49 @@ uv run pymoney ingest tiller --since 2025-01-01
 # Fidelity only
 uv run pymoney ingest fidelity
 
-# Re-run categorization rules on uncategorized transactions
+# Categorize: uncategorized only (default) or re-run on everything
 uv run pymoney categorize
+uv run pymoney categorize --all
 
 # Show database stats (transaction count, date range, uncategorized count)
 uv run pymoney status
+```
+
+### Transaction Review
+
+```bash
+# How many uncategorized? What are the top descriptions?
+uv run pymoney tx summary
+
+# Interactive review — work through each uncategorized description group
+uv run pymoney tx review
+```
+
+In `tx review`, for each description group you can:
+- Pick a category by number or partial name (one-off assignment)
+- Press `r` to print a YAML rule snippet you can paste into `categories.yaml`
+- Press `s` to skip, `q` to quit and save progress
+
+### Categorization Migration
+
+Use this workflow when switching from Tiller-assigned categories to pymoney rules:
+
+```bash
+# 1. Run rules into proposed_category (doesn't touch existing categories)
+uv run pymoney migrate prepare
+
+# 2. Review what would change
+uv run pymoney migrate diff
+uv run pymoney migrate diff --limit 100
+
+# 3. Dry-run to see the scope
+uv run pymoney migrate apply --dry-run
+
+# 4. Commit the new categories
+uv run pymoney migrate apply
+
+# 5. Clean up the temporary column
+uv run pymoney migrate clean
 ```
 
 ---
@@ -188,6 +226,7 @@ categories that are consistently over or under budget.
 | `TILLER_SPREADSHEET_ID` | Google Sheets spreadsheet ID |
 | `FIDELITY_TAB_NAME` | Tab name for Fidelity data (default: `Fidelity`) |
 | `COINBASE_TAB_NAME` | Tab name for Coinbase data (default: `Coinbase`) |
+| `TILLER_IMPORT_CATEGORIES` | Set to `false` to ignore Tiller's categories on ingest (default: `true`) |
 | `PYMONEY_DB_PATH` | Path to DuckDB file (default: `data/finance.db`) |
 
 ---
