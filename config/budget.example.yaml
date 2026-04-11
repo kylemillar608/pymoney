@@ -1,0 +1,16 @@
+# Copy this file to budget.yaml and fill in your monthly targets.
+# Amounts are positive regardless of income/expense direction.
+# Categories here must match names in categories.yaml.
+budget:
+  # Income targets
+  Paycheck:  5000.00
+
+  # Mandatory expenses
+  Rent:       1500.00
+  Groceries:   400.00
+  Internet:     60.00
+
+  # Discretionary
+  Eating out: 200.00
+  Travel:     300.00
+  Hobbies:    100.00

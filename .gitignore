@@ -1,3 +1,7 @@
+# Personal config (categories and budget contain personal financial data)
+config/categories.yaml
+config/budget.yaml
+
 # Runtime data
 data/*.db
 data/*.duckdb

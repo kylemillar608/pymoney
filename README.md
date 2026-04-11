@@ -183,6 +183,15 @@ control and AI tools.
 
 ## Configuration
 
+### `config/categories.yaml` (not committed — personal data)
+
+Copy from the example to get started:
+
+```bash
+cp config/categories.example.yaml config/categories.yaml
+cp config/budget.example.yaml config/budget.yaml
+```
+
 ### `config/categories.yaml`
 
 Defines categories, their group, and keyword/regex rules for auto-classification.

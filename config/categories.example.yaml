@@ -1,0 +1,91 @@
+# Copy this file to categories.yaml and fill in your own categories and rules.
+# Rules within a category are OR'd. Use all_of for AND logic.
+#
+# Rule types:
+#   contains: "string"           matches description or full_description (case-insensitive)
+#   contains: ["a", "b"]         matches if any string is found
+#   regex: "pattern"             regex on description or full_description
+#   account: "string"            matches account field (case-insensitive contains)
+#   institution: "string"        matches institution field
+#   amount_gte: 1000             amount >= value
+#   amount_lte: -500             amount <= value
+#
+# Category flags:
+#   is_income: true              counted as income in cash flow reports
+#   is_transfer: true            excluded from both income and expenses
+#   hide_from_budget: true       hidden from budget variance reports
+
+categories:
+
+  # ── Transfers ────────────────────────────────────────────────────────────────
+
+  - name: CC Payment
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+    rules:
+      - contains: "Autopay"
+
+  - name: Transfer to Savings
+    group: Transfers
+    is_transfer: true
+    hide_from_budget: true
+    rules:
+      - all_of:
+          - contains: "Transfer"
+          - account: "Savings"
+
+  # ── Investments ───────────────────────────────────────────────────────────────
+
+  - name: Brokerage Inv
+    group: Investments
+    is_transfer: true
+    hide_from_budget: true
+    rules:
+      - account: "Brokerage"
+
+  # ── Income ────────────────────────────────────────────────────────────────────
+
+  - name: Paycheck
+    group: Primary Income
+    is_income: true
+    rules:
+      - contains: "Payroll"
+
+  - name: Bonus
+    group: Primary Income
+    is_income: true
+
+  # ── Spending ──────────────────────────────────────────────────────────────────
+
+  - name: Rent
+    group: Home
+    rules:
+      - contains: "RENT"
+
+  - name: Groceries
+    group: Food & Dining
+    rules:
+      - contains:
+          - "Whole Foods"
+          - "Trader Joe"
+          - "Safeway"
+
+  - name: Eating out
+    group: Food & Dining
+    rules:
+      - contains:
+          - "Doordash"
+          - "Chipotle"
+      - regex: "^Sq \\*|^Tst\\*"
+
+  - name: Subscriptions
+    group: Entertainment
+    rules:
+      - contains:
+          - "Netflix"
+          - "Spotify"
+          - "Apple.com/bill"
+
+  - name: Misc
+    group: Misc
