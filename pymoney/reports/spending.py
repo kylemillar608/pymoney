@@ -83,13 +83,14 @@ def get_monthly_cash_flow(
     df = conn.execute("""
         SELECT
             strftime(t.date, '%Y-%m') AS month,
-            SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0.0 END) AS income,
-            SUM(CASE WHEN t.amount < 0 THEN ABS(t.amount) ELSE 0.0 END) AS expenses
+            SUM(CASE WHEN c.is_income = TRUE AND t.amount > 0 THEN t.amount ELSE 0.0 END) AS income,
+            greatest(0.0, -SUM(CASE WHEN (c.is_income IS NULL OR c.is_income = FALSE)
+                                        AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
+                                        AND (c.exclude_from_reports IS NULL OR c.exclude_from_reports = FALSE)
+                                   THEN t.amount ELSE 0.0 END)) AS expenses
         FROM transactions t
         LEFT JOIN categories c ON c.name = t.category
         WHERE t.date >= CURRENT_DATE - CAST(? AS INTEGER) * INTERVAL '1 month'
-          AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
-          AND (c.exclude_from_reports IS NULL OR c.exclude_from_reports = FALSE)
         GROUP BY strftime(t.date, '%Y-%m')
         ORDER BY month
     """, [window_months]).df()
@@ -136,6 +137,7 @@ def get_category_spotlight(
           AND t.amount < 0
           AND t.category IS NOT NULL
           AND t.category != ''
+          AND (c.is_income IS NULL OR c.is_income = FALSE)
           AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
           AND (c.exclude_from_reports IS NULL OR c.exclude_from_reports = FALSE)
         GROUP BY strftime(t.date, '%Y-%m'), t.category, c.group_name

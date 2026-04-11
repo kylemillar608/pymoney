@@ -68,6 +68,7 @@ categories:
       - contains: ["BEST BUY", "APPLE STORE", "NEWEGG", "B&H"]
   - name: Paycheck
     group: Income
+    is_income: true
     rules:
       - regex: "PAYROLL|DIRECT DEPOSIT|SALARY|PAYCHECK"
   - name: Interest Income
@@ -160,12 +161,15 @@ categories:
     hide_from_budget: true
   - name: Investments
     group: Investments
-    is_transfer: true
-    hide_from_budget: true
+    is_income: true
 
   # Income
   - name: Google Equity
     group: Income
+    is_income: true
+  - name: Bonus
+    group: Income
+    is_income: true
   - name: Reimbursements
     group: Income
 
