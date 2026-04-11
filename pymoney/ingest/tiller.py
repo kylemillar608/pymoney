@@ -24,6 +24,14 @@ _TRANSACTIONS_TAB = "Transactions"
 _BALANCES_TAB = "Balance History"
 
 
+def _parse_decimal(value: Any) -> float:
+    """Parse a numeric string, stripping $, commas, and whitespace."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    cleaned = str(value).strip().replace("$", "").replace(",", "")
+    return float(cleaned) if cleaned else 0.0
+
+
 def _get_client() -> gspread.Client:
     """Build authenticated gspread client from service account JSON."""
     service_account_path = os.path.expanduser(
@@ -89,7 +97,7 @@ def fetch_transactions(since_date: date | None = None) -> list[dict[str, Any]]:
             "date": tx_date,
             "description": str(r.get("Description", "")).strip(),
             "full_description": str(r.get("Full Description", "")).strip() or None,
-            "amount": float(r.get("Amount", 0)),
+            "amount": _parse_decimal(r.get("Amount", 0)),
             "category": str(r.get("Category", "")).strip() or None,
             "account": str(r.get("Account", "")).strip(),
             "account_number": str(r.get("Account #", "")).strip() or None,
