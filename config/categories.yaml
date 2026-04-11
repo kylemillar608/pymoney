@@ -68,12 +68,10 @@ categories:
       - contains: ["BEST BUY", "APPLE STORE", "NEWEGG", "B&H"]
   - name: Paycheck
     group: Income
-    is_income: true
     rules:
       - regex: "PAYROLL|DIRECT DEPOSIT|SALARY|PAYCHECK"
   - name: Interest Income
     group: Income
-    is_income: true
     rules:
       - regex: "INTEREST PAID|DIVIDEND|INTEREST CREDIT"
   - name: Transfers
@@ -168,10 +166,8 @@ categories:
   # Income
   - name: Google Equity
     group: Income
-    is_income: true
   - name: Reimbursements
     group: Income
-    is_income: true
 
   # Spending categories
   - name: Eating out
