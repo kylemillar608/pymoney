@@ -135,7 +135,7 @@ def fetch_balances(since_date: date | None = None) -> list[dict[str, Any]]:
             "account": str(r.get("Account", "")).strip(),
             "account_number": str(r.get("Account #", "")).strip() or None,
             "account_id": str(r.get("Account ID", "")).strip() or None,
-            "balance": float(r.get("Balance", 0)),
+            "balance": _parse_decimal(r.get("Balance", 0)),
         })
     return rows
 
