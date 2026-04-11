@@ -7,7 +7,8 @@ app = marimo.App(width="full")
 @app.cell
 def _():
     import marimo as mo
-    return mo,
+
+    return (mo,)
 
 
 @app.cell
@@ -19,14 +20,15 @@ def _():
     conn = get_connection()
     sync_categories(conn)
     sync_budget(conn)
-    return conn,
+    return (conn,)
 
-
-# ── Transactions ──────────────────────────────────────────────────────────────
 
 @app.cell
 def _(mo):
-    mo.md("## Transactions")
+    mo.md("""
+    ## Transactions
+    """)
+    return
 
 
 @app.cell
@@ -45,14 +47,15 @@ def _(conn, mo):
         """,
         engine=conn,
     )
-    return _transactions,
+    return
 
-
-# ── Filtered View ─────────────────────────────────────────────────────────────
 
 @app.cell
 def _(mo):
-    mo.md("## Filtered View")
+    mo.md("""
+    ## Filtered View
+    """)
+    return
 
 
 @app.cell
@@ -74,7 +77,7 @@ def _(conn, mo):
     limit_filter = mo.ui.dropdown(["100", "500", "1000", "All"], value="100", label="Limit")
 
     mo.hstack([cat_filter, acct_filter, search_filter, limit_filter], gap="1rem")
-    return acct_filter, cat_filter, limit_filter, search_filter,
+    return acct_filter, cat_filter, limit_filter, search_filter
 
 
 @app.cell
@@ -110,6 +113,7 @@ def _(acct_filter, cat_filter, conn, limit_filter, mo, search_filter):
         mo.md(f"**{len(_df):,} transactions** · net `${_net:,.2f}`"),
         mo.ui.table(_df, selection=None),
     ])
+    return
 
 
 if __name__ == "__main__":
