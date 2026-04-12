@@ -1,26 +1,57 @@
 # pymoney
 
-Most personal finance tools give you charts you don't need and bury the numbers
-you actually care about. pymoney is the opposite: a lean, local system that pulls
-your real transaction data, runs it through rules you control, and surfaces the
-handful of metrics worth paying attention to each month.
+pymoney is a local-first personal finance system built to be owned, not just used.
+Your data lives in a local DuckDB file. Your rules live in YAML. Every report is
+a plain Python notebook. Nothing is hidden, nothing is magic — and everything is
+editable.
 
-**Key properties:**
+The whole thing was built in a weekend using [Gastown](https://github.com/gastown-dev/gastown),
+an AI-native dev framework. That's not a footnote — it's the point. pymoney is
+designed from the ground up to be understandable and modifiable by AI, which
+makes it a fundamentally different kind of personal finance tool.
 
-- **Accurate by default.** Income, expenses, and transfers are classified by
-  category type — not just the sign of the transaction. Zelle rent splits
-  reduce your expenses rather than inflate income. Payroll and equity are
-  your actual income, not just any positive number that came through.
-- **Fully customizable.** Categories, labels, rules, and budget targets live in
-  YAML files you own. Adjust a few lines and your reports immediately reflect
-  your actual financial picture.
-- **AI-friendly.** Because data stays local in a DuckDB file and notebooks
-  are plain Python scripts, you can paste queries or notebook cells directly
-  into a conversation with an AI and get real analysis — no upload, no
-  privacy risk.
-- **Minimal surface area.** A handful of CLI commands to ingest and inspect,
-  one reactive notebook per view. Nothing to maintain beyond keeping your
-  data sources in sync.
+### The real unlock is Claude
+
+Because every piece of pymoney is plain text — Python notebooks, YAML configs,
+SQL queries, a CLI with human-readable commands — Claude can read, write, and
+reason about all of it. That changes what it means to "use" this software:
+
+- **You don't need to read these docs.** Fork the repo and open a Claude Code
+  session. Ask it to onboard you. It will read the codebase, walk you through
+  setup, explain any part of the system, and get you running — no manual required.
+- **Ask about your finances in plain English.** With your data in a local DB,
+  you can ask Claude things like *"what did I spend the most on two months ago,
+  excluding recurring payments?"* and get a real answer backed by actual SQL
+  against your actual transactions. No dashboards, no CSV exports, no privacy
+  trade-off.
+- **Build whatever you want.** The YAML configs expose categories, labels,
+  budgets, and account metadata. But the notebooks and CLI are raw Python —
+  there's no ceiling. Ask Claude to add a custom report, wire up a new metric,
+  or build something the configs don't expose yet. The whole codebase is fair
+  game.
+
+### Key properties
+
+- **Rule-based and accurate.** Categories are defined by rules you write, not a
+  black-box model. Income, expenses, and transfers are classified by type — so
+  your numbers reflect reality, not just the sign of a transaction.
+- **SQL-native.** Everything lives in DuckDB — a full SQL engine embedded in a
+  single local file. Query your finances directly, join across tables, or drop
+  into a Marimo SQL cell in the notebook. No ORM, no abstraction layer.
+- **Beautiful, reactive interface.** Reports are [Marimo](https://marimo.io/)
+  notebooks: interactive filters, live charts, and a clean UI — without the
+  overhead of a web app. Notebooks are plain `.py` files, so they diff cleanly,
+  work with version control, and Claude can edit them directly.
+- **Intuitive CLI.** A small set of composable commands (`ingest`, `categorize`,
+  `label`, `apply`, `sync`, `tx review`) cover the full workflow with no
+  surprises. `--dry-run` and `--all` flags work consistently across commands.
+- **Easy migration from Tiller.** Already using Tiller? There's a built-in
+  migration workflow that runs your new rules into a staging column, shows you
+  a side-by-side diff of what would change, and lets you commit when you're
+  happy — without touching your existing categories until you're ready.
+- **Private by default.** Your data never leaves your machine. No accounts,
+  no sync, no cloud. The pre-commit hook and `.gitignore` rules make it hard
+  to accidentally push financial data even if you're not thinking about it.
 
 ## Tech Stack
 
