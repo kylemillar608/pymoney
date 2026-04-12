@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     import duckdb
 
 from pymoney.categorize.rules import _CONFIG_PATH, _load_rules
+from pymoney.labels import _CONFIG_PATH as _LABEL_CONFIG_PATH
 
 
 def get_summary(conn: duckdb.DuckDBPyConnection) -> dict:
@@ -43,6 +44,7 @@ def get_summary(conn: duckdb.DuckDBPyConnection) -> dict:
 def run_review(
     conn: duckdb.DuckDBPyConnection,
     config_path: Path | None = None,
+    label_config_path: Path | None = None,
 ) -> None:
     """
     Interactive review of uncategorized transactions, grouped by description.
@@ -50,6 +52,7 @@ def run_review(
     For each description group: show stats, prompt for category, optionally write rule.
     """
     config_path = config_path or _CONFIG_PATH
+    label_config_path = label_config_path or _LABEL_CONFIG_PATH
     cat_names = [c["name"] for c in _load_rules(config_path)]
 
     groups = conn.execute("""
@@ -123,6 +126,9 @@ def run_review(
             if click.confirm("  Also write a rule hint to screen?", default=False):
                 _print_rule_hint(description)
 
+            # Label prompt
+            _prompt_labels(conn, description, label_config_path)
+
             break
 
         click.echo()
@@ -156,4 +162,64 @@ def _print_rule_hint(description: str) -> None:
     click.echo()
     click.echo("  Add to the relevant category's rules in config/categories.yaml:")
     click.echo(f'      - contains: ["{description}"]')
+    click.echo()
+
+
+def _prompt_labels(
+    conn: duckdb.DuckDBPyConnection,
+    description: str,
+    label_config_path: Path | None = None,
+) -> None:
+    """Prompt to apply labels to all transactions with the given description."""
+    existing_labels = [
+        r[0] for r in conn.execute(
+            "SELECT DISTINCT label FROM transaction_labels ORDER BY label"
+        ).fetchall()
+    ]
+
+    while True:
+        click.echo()
+        if existing_labels:
+            options = "  ".join(f"[{i + 1}] {l}" for i, l in enumerate(existing_labels))
+            click.echo(f"  Labels: {options}")
+        click.echo("  Add label (number, name, or Enter to skip):")
+        raw = click.prompt("  Label", default="").strip()
+
+        if not raw:
+            break
+
+        if raw.isdigit():
+            idx = int(raw) - 1
+            if 0 <= idx < len(existing_labels):
+                label_str = existing_labels[idx]
+            else:
+                click.echo(f"  Invalid number.")
+                continue
+        else:
+            label_str = raw
+
+        # Apply label to all transactions with this description
+        tx_ids = [r[0] for r in conn.execute(
+            "SELECT id FROM transactions WHERE description = ?", [description]
+        ).fetchall()]
+        for tx_id in tx_ids:
+            conn.execute(
+                "INSERT INTO transaction_labels (transaction_id, label) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                [tx_id, label_str],
+            )
+        click.echo(f"  ✓ Label '{label_str}' applied to {len(tx_ids)} transaction(s).")
+
+        if label_str not in existing_labels:
+            existing_labels.append(label_str)
+            existing_labels.sort()
+            _print_label_rule_hint(description, label_str)
+
+
+def _print_label_rule_hint(description: str, label: str) -> None:
+    """Print a YAML snippet the user can paste into labels.yaml."""
+    click.echo()
+    click.echo("  Add to config/labels.yaml to apply this label automatically:")
+    click.echo(f"    - label: {label}")
+    click.echo(f'      rules:')
+    click.echo(f'        - contains: "{description}"')
     click.echo()

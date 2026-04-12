@@ -31,6 +31,7 @@ def _eval_leaf(
     account: str,
     institution: str,
     amount: float,
+    category: str = "",
 ) -> bool:
     """Evaluate a single leaf rule against transaction fields."""
     if "contains" in rule:
@@ -49,9 +50,11 @@ def _eval_leaf(
     if "institution" in rule:
         return rule["institution"].upper() in institution
     if "amount_gte" in rule:
-        return amount >= float(rule["amount_gte"])
+        return abs(amount) >= float(rule["amount_gte"])
     if "amount_lte" in rule:
-        return amount <= float(rule["amount_lte"])
+        return abs(amount) <= float(rule["amount_lte"])
+    if "category" in rule:
+        return rule["category"].upper() == category
     return False
 
 
@@ -62,14 +65,15 @@ def _eval_rule(
     account: str,
     institution: str,
     amount: float,
+    category: str = "",
 ) -> bool:
     """Evaluate one rule item — either a leaf rule or an all_of compound."""
     if "all_of" in rule:
         return all(
-            _eval_leaf(sub, desc, full_desc, account, institution, amount)
+            _eval_leaf(sub, desc, full_desc, account, institution, amount, category)
             for sub in rule["all_of"]
         )
-    return _eval_leaf(rule, desc, full_desc, account, institution, amount)
+    return _eval_leaf(rule, desc, full_desc, account, institution, amount, category)
 
 
 def sync_categories(
@@ -82,17 +86,16 @@ def sync_categories(
         name = cat["name"]
         group_name = cat.get("group")
         is_income = bool(cat.get("is_income", False))
-        is_transfer = bool(cat.get("is_transfer", False))
-        hide_from_budget = bool(cat.get("hide_from_budget", False))
+        ignore = bool(cat.get("ignore", False))
         exclude_from_reports = bool(cat.get("exclude_from_reports", False))
         conn.execute("DELETE FROM categories WHERE name = ?", [name])
         conn.execute(
             """
             INSERT INTO categories
-                (name, group_name, is_income, is_transfer, hide_from_budget, exclude_from_reports)
-            VALUES (?, ?, ?, ?, ?, ?)
+                (name, group_name, is_income, ignore, exclude_from_reports)
+            VALUES (?, ?, ?, ?, ?)
             """,
-            [name, group_name, is_income, is_transfer, hide_from_budget, exclude_from_reports],
+            [name, group_name, is_income, ignore, exclude_from_reports],
         )
 
 
@@ -150,6 +153,37 @@ def categorize_uncategorized(
             )
             updated += 1
     return updated
+
+
+def preview_categorize_uncategorized(
+    db_path: str | None = None,
+    config_path: Path | None = None,
+) -> list[dict]:
+    """
+    Dry-run of categorize_uncategorized: show what uncategorized transactions
+    would be assigned.
+
+    Returns list of dicts: {old_category (None), new_category, description, count},
+    sorted by count descending.
+    """
+    conn = get_connection(db_path)
+    rows = conn.execute("""
+        SELECT description, full_description, account, institution, amount
+        FROM transactions
+        WHERE category IS NULL OR category = ''
+    """).fetchall()
+
+    tally: dict[tuple, int] = {}
+    for desc, full_desc, acct, inst, amount in rows:
+        proposed = apply_rules(desc, full_desc, acct, inst, amount, config_path=config_path)
+        if proposed:
+            key = (None, proposed, desc)
+            tally[key] = tally.get(key, 0) + 1
+
+    return [
+        {"old_category": k[0], "new_category": k[1], "description": k[2], "count": v}
+        for k, v in sorted(tally.items(), key=lambda x: -x[1])
+    ]
 
 
 def preview_categorize_all(

@@ -95,12 +95,27 @@ def init_schema(conn: duckdb.DuckDBPyConnection) -> None:
     """)
 
     conn.execute("""
+        CREATE TABLE IF NOT EXISTS transaction_labels (
+            transaction_id VARCHAR NOT NULL,
+            label          VARCHAR NOT NULL,
+            PRIMARY KEY (transaction_id, label)
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS accounts (
+            name    VARCHAR PRIMARY KEY,
+            type    VARCHAR,   -- cash, holding, investment, retirement, credit
+            class   VARCHAR    -- asset, liability
+        )
+    """)
+
+    conn.execute("""
         CREATE TABLE IF NOT EXISTS categories (
             name VARCHAR PRIMARY KEY,
             group_name VARCHAR,
             is_income BOOLEAN DEFAULT FALSE,
-            is_transfer BOOLEAN DEFAULT FALSE,
-            hide_from_budget BOOLEAN DEFAULT FALSE,
+            ignore BOOLEAN DEFAULT FALSE,
             exclude_from_reports BOOLEAN DEFAULT FALSE
         )
     """)

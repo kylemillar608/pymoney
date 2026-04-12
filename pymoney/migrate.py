@@ -71,7 +71,9 @@ def diff(conn: duckdb.DuckDBPyConnection) -> list[dict]:
         FROM transactions
         WHERE category IS DISTINCT FROM proposed_category
         GROUP BY category, proposed_category, description
-        ORDER BY count DESC
+        ORDER BY
+            CASE WHEN proposed_category IS NOT NULL THEN 0 ELSE 1 END,
+            count DESC
     """).fetchall()
 
     return [

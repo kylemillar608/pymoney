@@ -27,7 +27,7 @@ def cf_conn():
     conn = get_in_memory_connection()
 
     conn.execute("""
-        INSERT INTO categories (name, group_name, is_income, is_transfer)
+        INSERT INTO categories (name, group_name, is_income, ignore)
         VALUES
             ('Groceries',   'Food & Dining', FALSE, FALSE),
             ('Restaurants', 'Food & Dining', FALSE, FALSE),
@@ -311,7 +311,7 @@ class TestCategorySpotlight:
         assert restaurant_rows[0]["direction"] == "OVER"
 
     def test_excludes_transfer_categories(self, cf_conn):
-        """is_transfer categories must never appear in the spotlight."""
+        """ignored categories must never appear in the spotlight."""
         from pymoney.reports.spending import get_category_spotlight
         with patch("pymoney.reports.spending.get_connection", return_value=cf_conn):
             result = get_category_spotlight(window_months=13)

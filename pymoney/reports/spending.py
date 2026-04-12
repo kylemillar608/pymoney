@@ -26,8 +26,7 @@ def spending_by_category(month: str, db_path: str | None = None) -> pd.DataFrame
             WHERE strftime(t.date, '%Y-%m') = ?
               AND t.amount < 0
               AND (c.is_income IS NULL OR c.is_income = FALSE)
-              AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
-              AND (c.hide_from_budget IS NULL OR c.hide_from_budget = FALSE)
+              AND (c.ignore IS NULL OR c.ignore = FALSE)
             GROUP BY t.category
         ),
         budgets AS (
@@ -85,7 +84,7 @@ def get_monthly_cash_flow(
             strftime(t.date, '%Y-%m') AS month,
             SUM(CASE WHEN c.is_income = TRUE AND t.amount > 0 THEN t.amount ELSE 0.0 END) AS income,
             greatest(0.0, -SUM(CASE WHEN (c.is_income IS NULL OR c.is_income = FALSE)
-                                        AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
+                                        AND (c.ignore IS NULL OR c.ignore = FALSE)
                                         AND (c.exclude_from_reports IS NULL OR c.exclude_from_reports = FALSE)
                                    THEN t.amount ELSE 0.0 END)) AS expenses
         FROM transactions t
@@ -138,7 +137,7 @@ def get_category_spotlight(
           AND t.category IS NOT NULL
           AND t.category != ''
           AND (c.is_income IS NULL OR c.is_income = FALSE)
-          AND (c.is_transfer IS NULL OR c.is_transfer = FALSE)
+          AND (c.ignore IS NULL OR c.ignore = FALSE)
           AND (c.exclude_from_reports IS NULL OR c.exclude_from_reports = FALSE)
         GROUP BY strftime(t.date, '%Y-%m'), t.category, c.group_name
         ORDER BY month, t.category

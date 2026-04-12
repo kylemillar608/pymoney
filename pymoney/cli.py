@@ -79,48 +79,162 @@ def _ingest_result(*args: object, **kwargs: object) -> None:
     pass
 
 
+# ── preview helpers ───────────────────────────────────────────────────────────
+
+def _print_cat_preview(changes: list[dict], limit: int = 50) -> None:
+    if not changes:
+        click.echo("  No category changes.")
+        return
+    total = sum(r["count"] for r in changes)
+    click.echo(f"  {'Current':<25} {'New':<25} {'Description':<32} {'#':>5}")
+    click.echo("  " + "─" * 90)
+    for r in changes[:limit]:
+        old = r["old_category"] or "(none)"
+        click.echo(
+            f"  {old:<25} {r['new_category']:<25}"
+            f" {r['description'][:32]:<32} {r['count']:>5}"
+        )
+    if len(changes) > limit:
+        click.echo(f"  ... {len(changes) - limit} more groups")
+    click.echo(f"\n  {total} transaction(s) across {len(changes)} group(s).")
+
+
+def _print_label_preview(changes: list[dict], limit: int = 50) -> None:
+    if not changes:
+        click.echo("  No label changes.")
+        return
+    adds = sum(c["count"] for c in changes if c["change"] == "add")
+    removes = sum(c["count"] for c in changes if c["change"] == "remove")
+    click.echo(f"  {'Change':<8} {'Label':<20} {'Description':<36} {'#':>5}")
+    click.echo("  " + "─" * 72)
+    for r in changes[:limit]:
+        click.echo(
+            f"  {r['change']:<8} {r['label']:<20}"
+            f" {r['description'][:36]:<36} {r['count']:>5}"
+        )
+    if len(changes) > limit:
+        click.echo(f"  ... {len(changes) - limit} more groups")
+    click.echo(f"\n  +{adds} added · -{removes} removed")
+
+
 # ── categorize ────────────────────────────────────────────────────────────────
 
 @cli.command()
-@click.option(
-    "--all", "run_all",
-    is_flag=True,
-    help="Re-categorize all transactions, not just uncategorized ones.",
-)
-def categorize(run_all: bool) -> None:
+@click.option("--all", "run_all", is_flag=True, help="Re-categorize all transactions, not just uncategorized ones.")
+@click.option("--dry-run", is_flag=True, help="Preview changes without applying them.")
+def categorize(run_all: bool, dry_run: bool) -> None:
     """Run categorization rules on transactions."""
+    from pymoney.categorize.rules import (
+        categorize_all, categorize_uncategorized,
+        preview_categorize_all, preview_categorize_uncategorized,
+    )
+
     if run_all:
-        from pymoney.categorize.rules import categorize_all, preview_categorize_all
-
         changes = preview_categorize_all()
-        if not changes:
-            click.echo("No category changes — rules already match existing categories.")
+        click.echo()
+        _print_cat_preview(changes)
+        if dry_run:
             return
-
-        total = sum(r["count"] for r in changes)
+        if not changes:
+            return
         click.echo()
-        click.echo(f"  {'Current':<25} {'New':<25} {'Description':<32} {'#':>5}")
-        click.echo("  " + "─" * 90)
-        for r in changes[:50]:
-            click.echo(
-                f"  {r['old_category']:<25} {r['new_category']:<25}"
-                f" {r['description'][:32]:<32} {r['count']:>5}"
-            )
-        if len(changes) > 50:
-            click.echo(f"\n  ... {len(changes) - 50} more groups")
-        click.echo(f"\n  {total} transaction(s) across {len(changes)} description group(s) would change.")
-        click.echo()
-
         if not click.confirm("Apply changes?", default=False):
             click.echo("Cancelled.")
             return
-
         count = categorize_all()
         click.echo(f"Updated {count} transactions.")
     else:
-        from pymoney.categorize.rules import categorize_uncategorized
-        count = categorize_uncategorized()
-        click.echo(f"Categorized {count} transactions.")
+        if dry_run:
+            changes = preview_categorize_uncategorized()
+            click.echo()
+            _print_cat_preview(changes)
+        else:
+            count = categorize_uncategorized()
+            click.echo(f"Categorized {count} transactions.")
+
+
+# ── label ─────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--all", "run_all", is_flag=True, help="Re-label all transactions, not just unlabeled ones.")
+@click.option("--dry-run", is_flag=True, help="Preview changes without applying them.")
+def label(run_all: bool, dry_run: bool) -> None:
+    """Apply label rules to transactions."""
+    from pymoney.labels import label_all, label_unlabeled, preview_label_all, preview_label_unlabeled
+
+    conn = get_connection()
+    if run_all:
+        changes = preview_label_all(conn)
+        click.echo()
+        _print_label_preview(changes)
+        if dry_run:
+            return
+        if not changes:
+            return
+        click.echo()
+        if not click.confirm("Apply changes?", default=False):
+            click.echo("Cancelled.")
+            return
+        count = label_all(conn)
+        click.echo(f"Applied {count} labels.")
+    else:
+        if dry_run:
+            changes = preview_label_unlabeled(conn)
+            click.echo()
+            _print_label_preview(changes)
+        else:
+            count = label_unlabeled(conn)
+            click.echo(f"Applied {count} labels to previously unlabeled transactions.")
+
+
+# ── apply ─────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--all", "run_all", is_flag=True, help="Re-categorize and re-label all transactions.")
+@click.option("--dry-run", is_flag=True, help="Preview changes without applying them.")
+def apply(run_all: bool, dry_run: bool) -> None:
+    """Run categorization and labeling together."""
+    from pymoney.categorize.rules import (
+        categorize_all, categorize_uncategorized,
+        preview_categorize_all, preview_categorize_uncategorized,
+    )
+    from pymoney.labels import label_all, label_unlabeled, preview_label_all, preview_label_unlabeled
+
+    conn = get_connection()
+    if run_all:
+        cat_changes = preview_categorize_all()
+        label_changes = preview_label_all(conn)
+        click.echo()
+        click.echo("  Category changes:")
+        _print_cat_preview(cat_changes)
+        click.echo()
+        click.echo("  Label changes:")
+        _print_label_preview(label_changes)
+        if dry_run:
+            return
+        if not cat_changes and not label_changes:
+            return
+        click.echo()
+        if not click.confirm("Apply all changes?", default=False):
+            click.echo("Cancelled.")
+            return
+        cat_count = categorize_all()
+        label_count = label_all(conn)
+        click.echo(f"Updated {cat_count} categories, applied {label_count} labels.")
+    else:
+        if dry_run:
+            cat_changes = preview_categorize_uncategorized()
+            label_changes = preview_label_unlabeled(conn)
+            click.echo()
+            click.echo("  Category changes:")
+            _print_cat_preview(cat_changes)
+            click.echo()
+            click.echo("  Label changes:")
+            _print_label_preview(label_changes)
+        else:
+            cat_count = categorize_uncategorized()
+            label_count = label_unlabeled(conn)
+            click.echo(f"Categorized {cat_count} transactions, labeled {label_count}.")
 
 
 # ── migrate ───────────────────────────────────────────────────────────────────
@@ -250,13 +364,15 @@ def tx_review() -> None:
 @cli.command()
 def sync() -> None:
     """Sync categories and budget from config YAML files into the database."""
+    from pymoney.accounts import sync_accounts
     from pymoney.budget import sync_budget
     from pymoney.categorize.rules import sync_categories
 
     conn = get_connection()
     sync_categories(conn)
+    sync_accounts(conn)
     budget_count = sync_budget(conn)
-    click.echo(f"Synced categories and {budget_count} budget targets.")
+    click.echo(f"Synced categories, accounts, and {budget_count} budget targets.")
 
 
 # ── misc ──────────────────────────────────────────────────────────────────────

@@ -11,9 +11,9 @@ handful of metrics worth paying attention to each month.
   category type — not just the sign of the transaction. Zelle rent splits
   reduce your expenses rather than inflate income. Payroll and equity are
   your actual income, not just any positive number that came through.
-- **Fully customizable.** Categories, rules, and budget targets live in YAML
-  files you own. Adjust a few lines and your reports immediately reflect your
-  actual financial picture.
+- **Fully customizable.** Categories, labels, rules, and budget targets live in
+  YAML files you own. Adjust a few lines and your reports immediately reflect
+  your actual financial picture.
 - **AI-friendly.** Because data stays local in a DuckDB file and notebooks
   are plain Python scripts, you can paste queries or notebook cells directly
   into a conversation with an AI and get real analysis — no upload, no
@@ -116,12 +116,58 @@ uv run pymoney ingest tiller --since 2025-01-01
 # Fidelity only
 uv run pymoney ingest fidelity
 
-# Categorize: uncategorized only (default) or re-run on everything
-uv run pymoney categorize
-uv run pymoney categorize --all
-
 # Show database stats (transaction count, date range, uncategorized count)
 uv run pymoney status
+```
+
+### Categorization
+
+```bash
+# Categorize only uncategorized transactions
+uv run pymoney categorize
+
+# Re-run rules on all transactions (shows preview + confirmation prompt)
+uv run pymoney categorize --all
+
+# Preview what would change without applying
+uv run pymoney categorize --dry-run
+uv run pymoney categorize --all --dry-run
+```
+
+### Labeling
+
+Labels are strings applied to transactions independently of categories. Unlike
+categories (first-match), every matching label rule is applied — a transaction
+can carry multiple labels.
+
+```bash
+# Apply labels to transactions that don't have any yet
+uv run pymoney label
+
+# Re-run label rules on all transactions (shows preview + confirmation prompt)
+uv run pymoney label --all
+
+# Preview what would change without applying
+uv run pymoney label --dry-run
+uv run pymoney label --all --dry-run
+```
+
+### Categorize + Label Together
+
+```bash
+# Run both in one shot
+uv run pymoney apply
+uv run pymoney apply --all
+uv run pymoney apply --all --dry-run
+```
+
+### Sync Config
+
+Pushes category metadata, account metadata, and budget targets from YAML into
+the database. Run this after editing any config file.
+
+```bash
+uv run pymoney sync
 ```
 
 ### Transaction Review
@@ -138,6 +184,9 @@ In `tx review`, for each description group you can:
 - Pick a category by number or partial name (one-off assignment)
 - Press `r` to print a YAML rule snippet you can paste into `categories.yaml`
 - Press `s` to skip, `q` to quit and save progress
+
+After assigning a category, you'll also be prompted to add or confirm labels for
+that description.
 
 ### Categorization Migration
 
@@ -166,8 +215,12 @@ uv run pymoney migrate clean
 ## Notebooks
 
 ```bash
-# Monthly overview: cash flow, aggregate stats, category spotlight
+# Monthly overview: balances, net worth, cash flow, category spotlight,
+# recurring payments tracker, and transaction viewer
 uv run marimo run notebooks/monthly_review.py
+
+# Raw transaction drilldown
+uv run marimo run notebooks/drilldown.py
 ```
 
 To edit a notebook interactively:
@@ -183,9 +236,8 @@ control and AI tools.
 
 ## Configuration
 
-### `config/categories.yaml` (not committed — personal data)
-
-Copy from the example to get started:
+All config files are personal and not committed to the repo. Copy from the
+examples to get started:
 
 ```bash
 cp config/categories.example.yaml config/categories.yaml
@@ -195,32 +247,104 @@ cp config/budget.example.yaml config/budget.yaml
 ### `config/categories.yaml`
 
 Defines categories, their group, and keyword/regex rules for auto-classification.
-Each category can carry flags that control how it appears in reports:
 
 | Flag | Effect |
 |------|--------|
 | `is_income: true` | Counted as income in cash flow reports |
-| `is_transfer: true` | Excluded from both income and expenses |
-| `hide_from_budget: true` | Hidden from budget variance reports |
+| `ignore: true` | Excluded from income, expense, and budget reports (transfers, investments) |
 
 **Example:**
 
 ```yaml
 categories:
   - name: Paycheck
-    group: Income
+    group: Primary Income
     is_income: true
     rules:
-      - regex: "PAYROLL|DIRECT DEPOSIT|SALARY"
+      - contains: "Google Llc Payroll"
+
+  - name: Groceries
+    group: Mandatory
+    rules:
+      - contains:
+          - "Whole Foods"
+          - "Trader Joe"
+      - regex: '^Instacart'
+
+  - name: Apple TV
+    group: Discretionary
+    rules:
+      - all_of:
+          - contains: "Apple.com/bill"
+          - amount_gte: 9.99
+          - amount_lte: 9.99
 
   - name: CC Payment
-    group: Transfers
-    is_transfer: true
-    hide_from_budget: true
+    group: Transfer
+    ignore: true
+    rules:
+      - contains: "Autopay"
 ```
 
-Add your own categories, adjust the rules, and re-run `pymoney categorize` to
-reclassify existing transactions.
+**Rule types:**
+
+| Key | Matches when |
+|-----|-------------|
+| `contains: "text"` | Description contains text (case-insensitive) |
+| `contains: [list]` | Description contains any item in the list |
+| `regex: 'pattern'` | Description matches regex pattern |
+| `account: "name"` | Account name contains value |
+| `institution: "name"` | Institution name contains value |
+| `amount_gte: N` | Absolute transaction amount ≥ N |
+| `amount_lte: N` | Absolute transaction amount ≤ N |
+| `all_of: [...]` | All sub-rules match (AND compound) |
+
+Top-level rules within a category are OR'd. Run `pymoney categorize` after editing.
+
+### `config/labels.yaml`
+
+Defines string labels applied to transactions. Unlike categories, all matching
+labels are applied (not just the first). Labels can match on `category` in
+addition to all the rule types above.
+
+The built-in `is_recurring` label drives the Recurring Payments tracker in the
+monthly review notebook.
+
+**Example:**
+
+```yaml
+labels:
+  - label: is_recurring
+    rules:
+      - category: "Rent"
+      - category: "Netflix"
+      - category: "Internet"
+```
+
+Run `pymoney label --all` after editing.
+
+### `config/accounts.yaml`
+
+Maps account names to display metadata used in the balance tiles.
+
+| Field | Values |
+|-------|--------|
+| `type` | `cash`, `holding`, `investment`, `retirement`, `credit` |
+| `class` | `asset`, `liability` |
+
+**Example:**
+
+```yaml
+accounts:
+  - name: Checking
+    type: cash
+    class: asset
+  - name: Freedom Unlimited
+    type: credit
+    class: liability
+```
+
+Run `pymoney sync` after editing.
 
 ### `config/budget.yaml`
 
@@ -245,6 +369,7 @@ categories that are consistently over or under budget.
 pymoney reads sensitive financial data. These guardrails keep it out of the repo:
 
 - `.gitignore` blocks `*.csv`, `*.tsv`, `*.db`, `*.duckdb`, `*.json`, and `data/raw/`
+- `.gitignore` also blocks all personal config files (`categories.yaml`, `labels.yaml`, `accounts.yaml`, `budget.yaml`)
 - The pre-commit hook scans staged files for SSN patterns and 10+ digit account numbers
 
 Never commit `.env`, `service_account.json`, or any data exports.

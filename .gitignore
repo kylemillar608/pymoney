@@ -1,6 +1,8 @@
 # Personal config (categories and budget contain personal financial data)
 config/categories.yaml
 config/budget.yaml
+config/accounts.yaml
+config/labels.yaml
 
 # Runtime data
 data/*.db

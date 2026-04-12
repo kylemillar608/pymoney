@@ -12,8 +12,7 @@
 #
 # Category flags:
 #   is_income: true              counted as income in cash flow reports
-#   is_transfer: true            excluded from both income and expenses
-#   hide_from_budget: true       hidden from budget variance reports
+#   ignore: true                 excluded from both income and expenses
 
 categories:
 
@@ -21,15 +20,13 @@ categories:
 
   - name: CC Payment
     group: Transfers
-    is_transfer: true
-    hide_from_budget: true
+    ignore: true
     rules:
       - contains: "Autopay"
 
   - name: Transfer to Savings
     group: Transfers
-    is_transfer: true
-    hide_from_budget: true
+    ignore: true
     rules:
       - all_of:
           - contains: "Transfer"
@@ -39,8 +36,7 @@ categories:
 
   - name: Brokerage Inv
     group: Investments
-    is_transfer: true
-    hide_from_budget: true
+    ignore: true
     rules:
       - account: "Brokerage"
 

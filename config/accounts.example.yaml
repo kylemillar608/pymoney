@@ -1,0 +1,31 @@
+accounts:
+  # class: asset | liability
+  # type:  cash | holding | investment | retirement | credit
+
+  - name: "Checking"
+    type: cash
+    class: asset
+
+  - name: "Savings Account"
+    type: cash
+    class: asset
+
+  - name: "Brokerage"
+    type: investment
+    class: asset
+
+  - name: "401k"
+    type: retirement
+    class: asset
+
+  - name: "Roth IRA"
+    type: retirement
+    class: asset
+
+  - name: "Equity Awards"
+    type: holding
+    class: asset
+
+  - name: "Chase Sapphire"
+    type: credit
+    class: liability

@@ -1,0 +1,17 @@
+labels:
+  # Labels are strings applied to transactions via rules.
+  # Unlike categories (first-match), ALL matching rules apply their label.
+  # A transaction can carry multiple labels simultaneously.
+  #
+  # Supported rule types (same as categories.yaml):
+  #   contains: "string"    case-insensitive match on description or full_description
+  #   regex: "pattern"      regex on description or full_description
+  #   account: "string"     case-insensitive contains on account name
+  #   category: "Name"      exact match on category (unique to labels)
+  #   all_of: [...]         AND compound of the above
+
+  - label: is_recurring
+    rules:
+      - category: "Netflix"
+      - category: "Spotify"
+      - category: "Rent"

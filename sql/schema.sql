@@ -63,13 +63,26 @@ CREATE TABLE IF NOT EXISTS net_worth_snapshots (
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ── Transaction labels ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS transaction_labels (
+    transaction_id VARCHAR NOT NULL,
+    label          VARCHAR NOT NULL,
+    PRIMARY KEY (transaction_id, label)
+);
+
+-- ── Account metadata ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS accounts (
+    name    VARCHAR PRIMARY KEY,
+    type    VARCHAR,   -- cash, holding, investment, retirement, credit
+    class   VARCHAR    -- asset, liability
+);
+
 -- ── Category metadata ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS categories (
     name                VARCHAR PRIMARY KEY,
     group_name          VARCHAR,
     is_income           BOOLEAN DEFAULT FALSE,   -- counted as income in cash flow
-    is_transfer         BOOLEAN DEFAULT FALSE,   -- excluded from income and expenses
-    hide_from_budget    BOOLEAN DEFAULT FALSE,   -- hidden from budget reports
+    ignore              BOOLEAN DEFAULT FALSE,   -- excluded from income and expenses
     exclude_from_reports BOOLEAN DEFAULT FALSE
 );
 
