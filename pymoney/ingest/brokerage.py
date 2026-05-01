@@ -1,4 +1,4 @@
-"""Fidelity (Google Sheets tab) → investment_transactions ingest."""
+"""Brokerage (Google Sheets tab) → investment_transactions ingest."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _ACTION_TYPE_PATTERNS: list[tuple[str, str]] = [
 
 
 def _parse_action_type(action: str) -> str:
-    """Parse a verbose Fidelity action string into a normalized action_type."""
+    """Parse a verbose brokerage action string into a normalized action_type."""
     upper = action.upper()
     for pattern, action_type in _ACTION_TYPE_PATTERNS:
         if re.search(pattern, upper):
@@ -41,7 +41,7 @@ def _parse_action_type(action: str) -> str:
 
 
 def _parse_date(value: str) -> date | None:
-    """Parse Fidelity date strings."""
+    """Parse brokerage date strings."""
     if not value or not value.strip():
         return None
     value = value.strip()
@@ -70,8 +70,8 @@ def _make_id(account_number: str, run_date: Any, symbol: str, action: str, amoun
     return hashlib.md5(key.encode()).hexdigest()
 
 
-class FidelityTransaction(BaseModel):
-    """Validated Fidelity investment transaction."""
+class BrokerageTransaction(BaseModel):
+    """Validated brokerage investment transaction."""
 
     id: str
     run_date: date
@@ -118,14 +118,14 @@ def _get_sheet() -> gspread.Spreadsheet:
     return client.open_by_key(spreadsheet_id)
 
 
-def load_fidelity_sheet() -> list[FidelityTransaction]:
-    """Read Fidelity tab from Google Sheets and return validated transactions."""
-    tab_name = os.getenv("FIDELITY_TAB_NAME", "Fidelity")
+def load_brokerage_sheet() -> list[BrokerageTransaction]:
+    """Read brokerage tab from Google Sheets and return validated transactions."""
+    tab_name = os.getenv("BROKERAGE_TAB_NAME", "BrokerageTransactions")
     sheet = _get_sheet()
     ws = sheet.worksheet(tab_name)
     records = ws.get_all_records()
 
-    transactions: list[FidelityTransaction] = []
+    transactions: list[BrokerageTransaction] = []
     for r in records:
         run_date_val = str(r.get("Run Date", "")).strip()
         if not run_date_val:
@@ -140,7 +140,7 @@ def load_fidelity_sheet() -> list[FidelityTransaction]:
         amount_val = _parse_decimal(str(r.get("Amount", "")))
         tx_id = _make_id(account_number or "", run_date, symbol or "", action, amount_val)
 
-        tx = FidelityTransaction(
+        tx = BrokerageTransaction(
             id=tx_id,
             run_date=run_date,
             account=str(r.get("Account", "")).strip() or None,
@@ -162,12 +162,12 @@ def load_fidelity_sheet() -> list[FidelityTransaction]:
     return transactions
 
 
-def ingest_fidelity(db_path: str | None = None) -> int:
-    """Load Fidelity tab from Google Sheets and upsert into investment_transactions.
+def ingest_brokerage(db_path: str | None = None) -> int:
+    """Load brokerage tab from Google Sheets and upsert into investment_transactions.
 
     Returns count inserted.
     """
-    transactions = load_fidelity_sheet()
+    transactions = load_brokerage_sheet()
     if not transactions:
         return 0
 

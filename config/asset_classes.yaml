@@ -1,0 +1,34 @@
+asset_classes:
+  # US Equities
+  - ticker: IVV
+    asset_class: Stocks
+  - ticker: VOO
+    asset_class: Stocks
+  - ticker: VO
+    asset_class: Stocks
+  - ticker: VBK
+    asset_class: Stocks
+
+  # International Equities
+  - ticker: VEA
+    asset_class: International Stocks
+  - ticker: VXUS
+    asset_class: International Stocks
+  - ticker: SPEM
+    asset_class: International Stocks
+
+  # Bonds
+  - ticker: BND
+    asset_class: Bonds
+  - ticker: VGLT
+    asset_class: Bonds
+
+  # Real Estate
+  - ticker: VNQ
+    asset_class: Real Estate
+  - ticker: USRT
+    asset_class: Real Estate
+
+  # Cash
+  - ticker: SPAXX
+    asset_class: Cash

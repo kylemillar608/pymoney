@@ -118,14 +118,14 @@ in a single Google Spreadsheet. One-time setup:
 Google Sheet automatically. pymoney reads the `Transactions` and `Balance History`
 tabs directly via the Sheets API — no CSV exports needed.
 
-### Fidelity (investment transactions)
+### Brokerage (investment transactions)
 
-Paste your Fidelity CSV export into a dedicated tab in the same spreadsheet
-(default tab name: `Fidelity`). The expected columns match Fidelity's standard
+Paste your brokerage CSV export into a dedicated tab in the same spreadsheet
+(default tab name: `BrokerageTransactions`). The expected columns match Fidelity's standard
 CSV export format: Run Date, Account, Account Number, Action, Symbol, Description,
 Type, Quantity, Price, Amount, Commission, Fees, Settlement Date.
 
-Set `FIDELITY_TAB_NAME` in `.env` if your tab has a different name.
+Set `BROKERAGE_TAB_NAME` in `.env` if your tab has a different name.
 
 ### Coinbase (BTC trades) — coming soon
 
@@ -137,15 +137,15 @@ in `.env` to configure the tab name.
 ## Commands
 
 ```bash
-# Pull everything (Tiller + Fidelity)
+# Pull everything (Tiller + brokerage)
 uv run pymoney ingest all
 
 # Tiller only — optionally limit to recent data
 uv run pymoney ingest tiller
 uv run pymoney ingest tiller --since 2025-01-01
 
-# Fidelity only
-uv run pymoney ingest fidelity
+# Brokerage only
+uv run pymoney ingest brokerage
 
 # Show database stats (transaction count, date range, uncategorized count)
 uv run pymoney status
@@ -388,7 +388,7 @@ categories that are consistently over or under budget.
 |----------|-------------|
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Path to service account key file |
 | `TILLER_SPREADSHEET_ID` | Google Sheets spreadsheet ID |
-| `FIDELITY_TAB_NAME` | Tab name for Fidelity data (default: `Fidelity`) |
+| `BROKERAGE_TAB_NAME` | Tab name for brokerage investment data (default: `Fidelity`) |
 | `COINBASE_TAB_NAME` | Tab name for Coinbase data (default: `Coinbase`) |
 | `TILLER_IMPORT_CATEGORIES` | Set to `false` to ignore Tiller's categories on ingest (default: `true`) |
 | `PYMONEY_DB_PATH` | Path to DuckDB file (default: `data/finance.db`) |

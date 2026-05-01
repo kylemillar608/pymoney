@@ -38,13 +38,13 @@ def ingest_tiller(since: str | None) -> None:
     click.echo(f"Ingested {tx_count} spending transactions, {bal_count} account balance records from Tiller.")
 
 
-@ingest.command("fidelity")
-def ingest_fidelity() -> None:
-    """Ingest Fidelity investment transactions from Google Sheets."""
-    from pymoney.ingest.fidelity import ingest_fidelity as _ingest_fidelity
+@ingest.command("brokerage")
+def ingest_brokerage() -> None:
+    """Ingest brokerage investment transactions from Google Sheets."""
+    from pymoney.ingest.brokerage import ingest_brokerage as _ingest_brokerage
 
-    count = _ingest_fidelity()
-    click.echo(f"Ingested {count} investment transactions from Fidelity tab.")
+    count = _ingest_brokerage()
+    click.echo(f"Ingested {count} investment transactions from brokerage tab.")
 
 
 @ingest.command("coinbase")
@@ -60,16 +60,16 @@ def ingest_coinbase() -> None:
 
 @ingest.command("all")
 def ingest_all() -> None:
-    """Run full ingest: Tiller + Fidelity from Google Sheets (Coinbase skipped until implemented)."""
-    from pymoney.ingest.fidelity import ingest_fidelity as _ingest_fidelity
+    """Run full ingest: Tiller + brokerage from Google Sheets (Coinbase skipped until implemented)."""
+    from pymoney.ingest.brokerage import ingest_brokerage as _ingest_brokerage
     from pymoney.ingest.tiller import ingest_balances, ingest_transactions
 
     tx_count = ingest_transactions()
     bal_count = ingest_balances()
     click.echo(f"Tiller: {tx_count} spending transactions, {bal_count} account balance records.")
 
-    inv_count = _ingest_fidelity()
-    click.echo(f"Fidelity: {inv_count} investment transactions.")
+    inv_count = _ingest_brokerage()
+    click.echo(f"Brokerage: {inv_count} investment transactions.")
 
     click.echo("Coinbase: skipped (not yet implemented).")
 

@@ -375,7 +375,291 @@ def _(conn, mo, pd):
     mo.vstack([_summary, mo.ui.table(pd.DataFrame(_rows), selection=None)])
 
 
-# ── Section 6: Transaction Viewer ─────────────────────────────────────────────
+# ── Section 6: Investments ────────────────────────────────────────────────────
+
+@app.cell
+def _(mo):
+    mo.md("## Investments")
+
+
+@app.cell
+def _(conn):
+    from pymoney.reports.investments import (
+        fetch_current_prices,
+        get_brokerage_value_history,
+        get_contributions_history,
+        get_dividends,
+        get_holdings,
+        get_portfolio_history,
+        load_asset_classes,
+    )
+
+    _portfolio_history = get_portfolio_history(conn)
+    _holdings_raw = get_holdings(conn)
+    _contributions_history = get_contributions_history(conn)
+    _brokerage_value_history = get_brokerage_value_history(conn)
+    _dividends = get_dividends(conn)
+    _asset_classes_map = load_asset_classes()
+
+    portfolio_history = _portfolio_history
+    holdings_raw = _holdings_raw
+    contributions_history = _contributions_history
+    brokerage_value_history = _brokerage_value_history
+    dividends = _dividends
+    asset_classes_map = _asset_classes_map
+    return (
+        asset_classes_map,
+        brokerage_value_history,
+        contributions_history,
+        dividends,
+        fetch_current_prices,
+        holdings_raw,
+        portfolio_history,
+    )
+
+
+@app.cell
+def _(asset_classes_map, fetch_current_prices, holdings_raw, portfolio_history):
+    import pandas as _pd_inv
+
+    _has_holdings = not holdings_raw.empty
+
+    if _has_holdings:
+        _prices = fetch_current_prices(holdings_raw["symbol"].tolist())
+        _h = holdings_raw.copy()
+        _h["current_price"] = _h["symbol"].map(_prices)
+        _mask = _h["current_price"].isna()
+        _h.loc[_mask, "current_price"] = _h.loc[_mask, "avg_cost_per_share"]
+        _h["current_value"] = _h["shares"] * _h["current_price"]
+        _h["unrealized_gain"] = _h["current_value"] - _h["cost_basis"]
+        _h["return_pct"] = (_h["unrealized_gain"] / _h["cost_basis"]) * 100
+        _h["asset_class"] = _h["symbol"].map(asset_classes_map).fillna("Other")
+        _h["pct_of_portfolio"] = _h["current_value"] / _h["current_value"].sum() * 100
+        inv_holdings = _h
+        inv_total_brokerage = float(_h["current_value"].sum())
+        inv_total_cost = float(_h["cost_basis"].sum())
+        inv_total_unrealized = inv_total_brokerage - inv_total_cost
+        inv_total_return_pct = (inv_total_unrealized / inv_total_cost * 100) if inv_total_cost > 0 else 0.0
+    else:
+        inv_holdings = holdings_raw
+        inv_total_brokerage = 0.0
+        inv_total_cost = None
+        inv_total_unrealized = None
+        inv_total_return_pct = None
+
+    _latest_month = portfolio_history["month"].max()
+    _latest = portfolio_history[portfolio_history["month"] == _latest_month]
+    inv_total_portfolio = float(_latest["balance"].sum())
+    inv_has_holdings = _has_holdings
+    return (
+        inv_has_holdings,
+        inv_holdings,
+        inv_total_brokerage,
+        inv_total_cost,
+        inv_total_portfolio,
+        inv_total_return_pct,
+        inv_total_unrealized,
+    )
+
+
+@app.cell
+def _(
+    inv_has_holdings,
+    inv_holdings,
+    inv_total_brokerage,
+    inv_total_cost,
+    inv_total_portfolio,
+    inv_total_return_pct,
+    inv_total_unrealized,
+    mo,
+):
+    _tiles = [
+        mo.stat(value=f"${inv_total_portfolio:,.0f}", label="Total Portfolio", bordered=True),
+        mo.stat(value=f"${inv_total_brokerage:,.0f}", label="Brokerage Value", bordered=True),
+    ]
+    if inv_total_cost is not None:
+        _sign = "+" if inv_total_unrealized >= 0 else ""
+        _tiles += [
+            mo.stat(value=f"${inv_total_cost:,.0f}", label="Cost Basis", bordered=True),
+            mo.stat(value=f"{_sign}${inv_total_unrealized:,.0f}", label="Unrealized Gain/Loss", bordered=True),
+            mo.stat(value=f"{_sign}{inv_total_return_pct:.1f}%", label="Total Return", bordered=True),
+        ]
+    mo.hstack(_tiles, justify="start")
+
+
+@app.cell
+def _(asset_classes_map, go, inv_has_holdings, inv_holdings, mo, portfolio_history):
+    import pandas as _pd_alloc
+
+    _latest_bal = portfolio_history[portfolio_history["month"] == portfolio_history["month"].max()]
+    _latest_bal = _latest_bal[_latest_bal["balance"] > 0]
+
+    _fig_accounts = go.Figure(go.Pie(
+        labels=_latest_bal["account"],
+        values=_latest_bal["balance"],
+        hole=0.45,
+        textinfo="label+percent",
+        hovertemplate="%{label}: $%{value:,.0f}<extra></extra>",
+        sort=True,
+    ))
+    _fig_accounts.update_layout(
+        title="By Account", showlegend=False,
+        margin=dict(t=48, b=8, l=8, r=8), height=340,
+    )
+
+    if inv_has_holdings and asset_classes_map:
+        _ac = inv_holdings.groupby("asset_class")["current_value"].sum().reset_index()
+        _fig_class = go.Figure(go.Pie(
+            labels=_ac["asset_class"], values=_ac["current_value"],
+            hole=0.45, textinfo="label+percent",
+            hovertemplate="%{label}: $%{value:,.0f}<extra></extra>", sort=True,
+        ))
+        _fig_class.update_layout(
+            title="By Asset Class", showlegend=False,
+            margin=dict(t=48, b=8, l=8, r=8), height=340,
+        )
+
+        _top = inv_holdings.nlargest(10, "current_value").copy()
+        _other_val = inv_holdings["current_value"].sum() - _top["current_value"].sum()
+        if _other_val > 1:
+            _top = _pd_alloc.concat([_top, _pd_alloc.DataFrame([{"symbol": "Other", "current_value": _other_val}])])
+        _fig_ticker = go.Figure(go.Pie(
+            labels=_top["symbol"], values=_top["current_value"],
+            hole=0.45, textinfo="label+percent",
+            hovertemplate="%{label}: $%{value:,.0f}<extra></extra>", sort=True,
+        ))
+        _fig_ticker.update_layout(
+            title="By Ticker", showlegend=False,
+            margin=dict(t=48, b=8, l=8, r=8), height=340,
+        )
+        mo.hstack([mo.ui.plotly(_fig_accounts), mo.ui.plotly(_fig_class), mo.ui.plotly(_fig_ticker)], justify="start")
+    else:
+        mo.ui.plotly(_fig_accounts)
+
+
+@app.cell
+def _(go, mo, portfolio_history):
+    _ACCT_ORDER = ["401k", "Roth IRA", "Brokerage", "Temp Equity", "Equity Awards"]
+    _pivot = (
+        portfolio_history.pivot(index="month", columns="account", values="balance")
+        .ffill().fillna(0)
+    )
+    _fig_hist = go.Figure()
+    for _acct in _ACCT_ORDER:
+        if _acct in _pivot.columns and _pivot[_acct].sum() > 0:
+            _fig_hist.add_trace(go.Scatter(
+                x=_pivot.index, y=_pivot[_acct], name=_acct,
+                stackgroup="one", mode="none",
+                hovertemplate=f"{_acct}: $%{{y:,.0f}}<extra></extra>",
+            ))
+    _fig_hist.update_layout(
+        title="Portfolio Value Over Time",
+        yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(t=64, b=40, l=60, r=20), height=380,
+    )
+    mo.ui.plotly(_fig_hist)
+
+
+@app.cell
+def _(brokerage_value_history, contributions_history, go, inv_has_holdings, mo):
+    import pandas as _pd_contrib
+
+    if not inv_has_holdings or contributions_history.empty or brokerage_value_history.empty:
+        mo.stop(True)
+
+    # Monthly cumulative contributions (all history from first BUY)
+    _contrib = contributions_history.copy()
+    _contrib["month"] = _pd_contrib.to_datetime(_contrib["date"]).dt.strftime("%Y-%m")
+    _monthly_contrib = (
+        _contrib.groupby("month")["daily_contributions"].sum()
+        .cumsum().reset_index()
+        .rename(columns={"daily_contributions": "cumulative_contributions"})
+    )
+
+    # Merge reconstructed brokerage value with cumulative contributions
+    _merged = brokerage_value_history.merge(_monthly_contrib, on="month", how="left")
+    _merged["cumulative_contributions"] = _merged["cumulative_contributions"].ffill().fillna(0)
+    _merged["market_growth"] = _merged["value"] - _merged["cumulative_contributions"]
+
+    _fig_contrib = go.Figure()
+    _fig_contrib.add_trace(go.Scatter(
+        x=_merged["month"], y=_merged["cumulative_contributions"],
+        name="Contributions", stackgroup="one", mode="none",
+        hovertemplate="Contributions: $%{y:,.0f}<extra></extra>",
+    ))
+    _fig_contrib.add_trace(go.Scatter(
+        x=_merged["month"], y=_merged["market_growth"],
+        name="Market Growth", stackgroup="one", mode="none",
+        hovertemplate="Market Growth: $%{y:,.0f}<extra></extra>",
+    ))
+    _fig_contrib.update_layout(
+        title="Contributions vs. Market Growth — Brokerage",
+        yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+        margin=dict(t=64, b=40, l=60, r=20), height=360,
+    )
+    mo.ui.plotly(_fig_contrib)
+
+
+@app.cell
+def _(go, inv_has_holdings, mo, dividends):
+    import pandas as _pd_div
+
+    if not inv_has_holdings or dividends.empty:
+        mo.stop(True)
+
+    _total_div = float(dividends["amount"].sum())
+    _by_ticker = dividends.groupby("symbol")["amount"].sum().sort_values(ascending=False)
+
+    _fig_div = go.Figure(go.Bar(
+        x=_by_ticker.index, y=_by_ticker.values,
+        hovertemplate="%{x}: $%{y:,.2f}<extra></extra>",
+    ))
+    _fig_div.update_layout(
+        title="Dividend Income by Ticker",
+        yaxis_tickprefix="$", yaxis_tickformat=",.0f",
+        margin=dict(t=48, b=40, l=60, r=20), height=300,
+    )
+
+    _recent = dividends.head(20).copy()
+    _recent["date"] = _pd_div.to_datetime(_recent["date"]).dt.strftime("%Y-%m-%d")
+    _recent["amount"] = _recent["amount"].map("${:,.2f}".format)
+
+    mo.accordion({
+        f"Dividends — ${_total_div:,.2f} total": mo.vstack([
+            mo.ui.plotly(_fig_div),
+            mo.ui.table(_recent, selection=None),
+        ])
+    })
+
+
+@app.cell
+def _(inv_has_holdings, inv_holdings, mo, pd):
+    if not inv_has_holdings:
+        mo.stop(True)
+
+    _display = pd.DataFrame({
+        "Symbol": inv_holdings["symbol"],
+        "Asset Class": inv_holdings.get("asset_class", "—"),
+        "Shares": inv_holdings["shares"].map("{:.4f}".format),
+        "Avg Cost": inv_holdings["avg_cost_per_share"].map("${:,.2f}".format),
+        "Price": inv_holdings["current_price"].map("${:,.2f}".format),
+        "Value": inv_holdings["current_value"].map("${:,.0f}".format),
+        "Gain/Loss": inv_holdings["unrealized_gain"].map(
+            lambda x: f"+${x:,.0f}" if x >= 0 else f"-${abs(x):,.0f}"
+        ),
+        "Return": inv_holdings["return_pct"].map(
+            lambda x: f"+{x:.1f}%" if x >= 0 else f"{x:.1f}%"
+        ),
+        "% Portfolio": inv_holdings["pct_of_portfolio"].map("{:.1f}%".format),
+    })
+    mo.ui.table(_display, selection=None)
+
+
+# ── Section 7: Transaction Viewer ─────────────────────────────────────────────
 
 @app.cell
 def _(conn, mo):

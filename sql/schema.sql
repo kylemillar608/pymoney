@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS account_balances (
     balance        DECIMAL(12,2) NOT NULL
 );
 
--- ── Fidelity investment transactions ─────────────────────────────────────────
+-- ── Brokerage investment transactions ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS investment_transactions (
     id              VARCHAR PRIMARY KEY,
     run_date        DATE NOT NULL,

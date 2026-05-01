@@ -1,4 +1,4 @@
-"""Tests for Fidelity Google Sheets ingest."""
+"""Tests for brokerage Google Sheets ingest."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pymoney.ingest.fidelity import (
-    FidelityTransaction,
+from pymoney.ingest.brokerage import (
+    BrokerageTransaction,
     _parse_action_type,
     _parse_date,
     _parse_decimal,
-    load_fidelity_sheet,
+    load_brokerage_sheet,
 )
 
 
@@ -133,48 +133,48 @@ def _make_mock_sheet(records: list[dict]) -> MagicMock:
     return mock_sheet
 
 
-def test_load_fidelity_sheet_returns_all_rows():
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet(_SAMPLE_RECORDS)):
-        txs = load_fidelity_sheet()
+def test_load_brokerage_sheet_returns_all_rows():
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet(_SAMPLE_RECORDS)):
+        txs = load_brokerage_sheet()
     assert len(txs) == 3
 
 
-def test_load_fidelity_sheet_action_type_buy():
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
-        txs = load_fidelity_sheet()
+def test_load_brokerage_sheet_action_type_buy():
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
+        txs = load_brokerage_sheet()
     assert txs[0].action_type == "BUY"
 
 
-def test_load_fidelity_sheet_fractional_quantity():
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
-        txs = load_fidelity_sheet()
+def test_load_brokerage_sheet_fractional_quantity():
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[0]])):
+        txs = load_brokerage_sheet()
     assert txs[0].quantity == pytest.approx(0.482)
 
 
-def test_load_fidelity_sheet_empty_symbol_imported():
+def test_load_brokerage_sheet_empty_symbol_imported():
     """Rows with empty Symbol (cash transactions) should be imported."""
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[1]])):
-        txs = load_fidelity_sheet()
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet([_SAMPLE_RECORDS[1]])):
+        txs = load_brokerage_sheet()
     assert len(txs) == 1
     assert txs[0].symbol is None
 
 
-def test_load_fidelity_sheet_empty_records():
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet([])):
-        txs = load_fidelity_sheet()
+def test_load_brokerage_sheet_empty_records():
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet([])):
+        txs = load_brokerage_sheet()
     assert txs == []
 
 
-def test_load_fidelity_sheet_skips_missing_run_date():
+def test_load_brokerage_sheet_skips_missing_run_date():
     records = [{"Run Date": "", "Action": "BUY", "Amount": "100"}]
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=_make_mock_sheet(records)):
-        txs = load_fidelity_sheet()
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=_make_mock_sheet(records)):
+        txs = load_brokerage_sheet()
     assert txs == []
 
 
-def test_load_fidelity_sheet_uses_env_tab_name(monkeypatch):
-    monkeypatch.setenv("FIDELITY_TAB_NAME", "My Fidelity Tab")
+def test_load_brokerage_sheet_uses_env_tab_name(monkeypatch):
+    monkeypatch.setenv("BROKERAGE_TAB_NAME", "My Brokerage Tab")
     mock_sheet = _make_mock_sheet([_SAMPLE_RECORDS[0]])
-    with patch("pymoney.ingest.fidelity._get_sheet", return_value=mock_sheet):
-        load_fidelity_sheet()
-    mock_sheet.worksheet.assert_called_once_with("My Fidelity Tab")
+    with patch("pymoney.ingest.brokerage._get_sheet", return_value=mock_sheet):
+        load_brokerage_sheet()
+    mock_sheet.worksheet.assert_called_once_with("My Brokerage Tab")
